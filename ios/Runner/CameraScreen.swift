@@ -92,7 +92,7 @@ struct CameraScreen: View {
                 Image(systemName: flash == .off ? "bolt.slash.fill" : flash == .auto ? "bolt.badge.a.fill" : "bolt.fill")
                     .foregroundStyle(flash == .off ? .white : .yellow)
                     .frame(width: 44, height: 44)
-            }.disabled(mode == .video || engine.recording || countdown > 0)
+            }.disabled(mode == .video || engine.isFront || engine.recording || countdown > 0)
                 .accessibilityLabel("闪光灯")
             Spacer()
             Button { guideVisible = true } label: {
@@ -453,8 +453,6 @@ struct SessionGallery: View {
 struct SessionMediaView: View {
     let capture: SessionCapture
     @State private var player: AVPlayer?
-    @State private var scale: CGFloat = 1
-    @State private var baseScale: CGFloat = 1
     @State private var image: UIImage?
 
     var body: some View {
@@ -463,14 +461,7 @@ struct SessionMediaView: View {
                 if let player { VideoPlayer(player: player) }
                 else { ProgressView() }
             } else if let image = image ?? capture.thumbnail {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(uiImage: image).resizable().scaledToFit()
-                        .containerRelativeFrame(.horizontal)
-                        .scaleEffect(scale)
-                        .gesture(MagnificationGesture().onChanged { scale = min(5, max(1, baseScale * $0)) }
-                            .onEnded { _ in baseScale = scale })
-                        .onTapGesture(count: 2) { scale = scale > 1 ? 1 : 2; baseScale = scale }
-                }
+                ZoomablePhoto(image: image)
             } else { ProgressView() }
         }
         .task(id: capture.displayURL) {
@@ -485,4 +476,72 @@ struct SessionMediaView: View {
             player?.pause()
         }
     }
+}
+
+final class PhotoScrollSurface: UIScrollView, UIScrollViewDelegate {
+    let photoView = UIImageView()
+    private var fittedSize = CGSize.zero
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        delegate = self
+        minimumZoomScale = 1
+        maximumZoomScale = 5
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
+        photoView.contentMode = .scaleAspectFit
+        addSubview(photoView)
+        panGestureRecognizer.isEnabled = false
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(toggleZoom(_:)))
+        doubleTap.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTap)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func setImage(_ image: UIImage) {
+        guard photoView.image !== image else { return }
+        setZoomScale(1, animated: false)
+        photoView.image = image
+        fittedSize = .zero
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if zoomScale == 1, let image = photoView.image, bounds.width > 0, bounds.height > 0 {
+            let factor = min(bounds.width / image.size.width, bounds.height / image.size.height)
+            let size = CGSize(width: image.size.width * factor, height: image.size.height * factor)
+            if size != fittedSize {
+                fittedSize = size
+                photoView.frame = CGRect(origin: .zero, size: size)
+                contentSize = size
+            }
+        }
+        centerPhoto()
+    }
+
+    private func centerPhoto() {
+        photoView.center = CGPoint(x: max(contentSize.width, bounds.width) / 2,
+                                   y: max(contentSize.height, bounds.height) / 2)
+    }
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { photoView }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        panGestureRecognizer.isEnabled = zoomScale > 1.01
+        centerPhoto()
+    }
+    @objc private func toggleZoom(_ gesture: UITapGestureRecognizer) {
+        if zoomScale > 1.01 { setZoomScale(1, animated: true) }
+        else {
+            let point = gesture.location(in: photoView)
+            let size = CGSize(width: bounds.width / 2.5, height: bounds.height / 2.5)
+            zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
+                            width: size.width, height: size.height), animated: true)
+        }
+    }
+}
+
+struct ZoomablePhoto: UIViewRepresentable {
+    let image: UIImage
+    func makeUIView(context: Context) -> PhotoScrollSurface { PhotoScrollSurface() }
+    func updateUIView(_ view: PhotoScrollSurface, context: Context) { view.setImage(image) }
 }
