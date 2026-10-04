@@ -66,11 +66,11 @@ struct PhotoEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar.frame(height: 48)
+            topBar.frame(height: 44)
             imageArea.frame(maxWidth: .infinity, maxHeight: .infinity)
-            toolControls.frame(height: 168)
-            toolBar.frame(height: 66)
-            bottomBar.frame(height: 50)
+            toolControls.frame(height: 122)
+            toolBar.frame(height: 54)
+            bottomBar.frame(height: 44)
         }
         .background(.black).foregroundStyle(.white)
         .preferredColorScheme(.dark).statusBarHidden()
@@ -179,7 +179,7 @@ struct PhotoEditorView: View {
     @ViewBuilder private var toolControls: some View {
         switch tool {
         case .adjust:
-            VStack(spacing: 13) {
+            VStack(spacing: 8) {
                 Text(adjustment.rawValue).font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.8))
                 HStack(spacing: 26) {
@@ -189,7 +189,7 @@ struct PhotoEditorView: View {
                                 Circle().stroke(item == adjustment ? cameraYellow : .gray.opacity(0.6), lineWidth: 1.5)
                                 Image(systemName: item.symbol).font(.system(size: 23, weight: .light))
                             }
-                            .frame(width: 48, height: 48)
+                            .frame(width: 44, height: 44)
                             .foregroundStyle(item == adjustment ? cameraYellow : .white)
                             .background(item == adjustment ? cameraYellow.opacity(0.08) : .clear, in: Circle())
                         }.accessibilityLabel(item.rawValue)
@@ -200,7 +200,7 @@ struct PhotoEditorView: View {
                         .font(.system(size: 12, weight: .medium)).monospacedDigit()
                         .foregroundStyle(cameraYellow)
                     AdjustmentRuler(value: dialValue, range: -100...100, step: 5, defaultValue: 0)
-                        .frame(height: 36).padding(.horizontal, 34)
+                        .frame(height: 34).padding(.horizontal, 34)
                 }
             }
         case .filters:
@@ -232,7 +232,7 @@ struct PhotoEditorView: View {
                     VStack(spacing: 6) {
                         Image(systemName: item.symbol).font(.system(size: 23, weight: .regular))
                         Text(item.rawValue).font(.system(size: 10, weight: .medium))
-                    }.frame(width: 48, height: 58)
+                    }.frame(width: 48, height: 52)
                         .foregroundStyle(tool == item ? cameraYellow : .white)
                 }
             }

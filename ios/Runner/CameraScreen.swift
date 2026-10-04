@@ -29,7 +29,7 @@ struct CameraScreen: View {
             let layout = CameraLayout(size: geometry.size, insets: geometry.safeAreaInsets, video: mode == .video)
             ZStack(alignment: .top) {
                 Color.black
-                viewfinder
+                viewfinder(lensPadding: layout.lensBottom)
                     .frame(width: layout.previewWidth, height: layout.previewHeight)
                     .position(x: geometry.size.width / 2, y: layout.previewTop + layout.previewHeight / 2)
                 VStack(spacing: 0) {
@@ -93,6 +93,9 @@ struct CameraScreen: View {
             engine.stop()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            #if CAMERA_UI_PREVIEW
+            if CameraUIPreview.enabled { return }
+            #endif
             guidedAccess = UIAccessibility.isGuidedAccessEnabled
             guard setupDone else { return }
             store.refreshPermissions()
@@ -153,7 +156,7 @@ struct CameraScreen: View {
         }.padding(.horizontal, 18)
     }
 
-    private var viewfinder: some View {
+    private func viewfinder(lensPadding: CGFloat) -> some View {
             ZStack(alignment: .bottom) {
                 #if CAMERA_UI_PREVIEW
                 if CameraUIPreview.enabled {
@@ -194,13 +197,13 @@ struct CameraScreen: View {
                                     .frame(width: lens.id == engine.selectedLens ? 42 : 32,
                                            height: lens.id == engine.selectedLens ? 42 : 32)
                                     .background(.black.opacity(0.5), in: Circle())
-                                    .frame(width: 42, height: 44)
+                                    .frame(width: 44, height: 44)
                                 }.disabled(engine.recording || engine.capturing || countdown > 0)
                                     .accessibilityLabel("\(lens.label) 倍镜头")
                             }
                         }
                     }
-                }.padding(.bottom, mode == .photo ? 16 : 92)
+                }.padding(.bottom, lensPadding)
             }
             .clipped()
             .contentShape(Rectangle())
@@ -395,6 +398,7 @@ struct CameraLayout {
     let bottomInset: CGFloat
     let bottomSpacing: CGFloat
     let shutterHeight: CGFloat
+    let lensBottom: CGFloat
 
     init(size: CGSize, insets: EdgeInsets, video: Bool) {
         let windowInsets = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -404,6 +408,7 @@ struct CameraLayout {
         shutterHeight = size.height < 700 ? 84 : 98
         bottomSpacing = size.height < 700 ? 4 : 18
         let dock = 48 + shutterHeight + bottomInset + bottomSpacing
+        lensBottom = video ? dock - bottomInset + 14 : 16
         if video {
             previewWidth = size.width
             previewHeight = size.height - topInset - 44 - bottomInset
@@ -580,13 +585,13 @@ struct GuidedAccessGuide: View {
                 Section("打开借拍时自动开启") {
                     Text("先完成借拍的相机及照片权限授权，并手动测试一次引导式访问和退出。")
                     Text("快捷指令 → 自动化 → App → 选择借拍 → 被打开 → 立即运行。添加「开始引导式访问」动作并保存。")
-                    Text("这项自动化由你在系统中配置。借拍会显示实际锁定状态；没有显示「已锁定」时，请手动启动引导式访问。")
+                    Text("这项自动化由你在系统中配置。相机右上角的黄色实心锁表示引导式访问已开启；也可以点按图标查看状态。未开启时请手动启动。")
                 }
                 Section {
                     Toggle("每次打开时提醒开启引导式访问", isOn: $remind)
                 }
                 Section("照片权限") {
-                    Text("建议选择「有限访问」：新拍照片仍可保存和编辑。借拍仅用本次照片 ID 请求修改，不枚举你的相册，也没有导入旧照片的入口。")
+                    Text("建议选择「有限访问」：新拍照片仍可保存和编辑，也不会在借拍中显示你的其他照片。")
                     Text("仅添加照片权限可以保存新照片，但不能同步修改原记录。编辑时 iOS 可能要求你确认允许修改。")
                 }
             }.navigationTitle("安心借拍").navigationBarTitleDisplayMode(.inline)
@@ -622,6 +627,8 @@ struct SessionGallery: View {
                             .tag(Optional(item.id))
                     }
                 }.tabViewStyle(.page(indexDisplayMode: .never))
+                    .padding(.top, chromeVisible ? 54 : 0)
+                    .padding(.bottom, chromeVisible ? 110 : 0)
             }
             VStack(spacing: 0) {
                 header.frame(height: 54)

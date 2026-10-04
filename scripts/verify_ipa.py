@@ -16,6 +16,9 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         assert info.get(key), f"Missing permission text: {key}"
     assert info.get("PHPhotoLibraryPreventAutomaticLimitedAccessAlert") is True
     assert "Payload/Runner.app/Runner" in archive.namelist()
+    executable = archive.read("Payload/Runner.app/Runner")
+    assert b"ui-preview-" not in executable, "Simulator demo data leaked into release"
+    assert b"CameraUIPreview" not in executable, "Simulator host leaked into release"
     assert "Payload/Runner.app/Frameworks/App.framework/App" in archive.namelist()
     assert "Payload/Runner.app/Frameworks/Flutter.framework/Flutter" in archive.namelist()
     assert archive.testzip() is None
