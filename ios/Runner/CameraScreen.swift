@@ -428,12 +428,12 @@ struct AdjustmentRuler: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let spacing = 7.0
+            let spacing: CGFloat = 7
             Canvas { context, size in
                 let count = Int(((range.upperBound - range.lowerBound) / step).rounded())
                 for index in 0...count {
                     let tick = range.lowerBound + Double(index) * step
-                    let x = size.width / 2 + (tick - value) / step * spacing
+                    let x: CGFloat = size.width / 2 + CGFloat((tick - value) / step) * spacing
                     guard x >= 0, x <= size.width else { continue }
                     let major = index % 5 == 0
                     let isDefault = abs(tick - defaultValue) < step / 2
@@ -454,7 +454,7 @@ struct AdjustmentRuler: View {
                 .onChanged { gesture in
                     if dragStart == nil { dragStart = value }
                     value = min(range.upperBound, max(range.lowerBound,
-                        (dragStart ?? value) - Double(gesture.translation.width) / spacing * step))
+                        (dragStart ?? value) - Double(gesture.translation.width / spacing) * step))
                 }
                 .onEnded { _ in dragStart = nil })
             .onTapGesture(count: 2) { value = defaultValue }
