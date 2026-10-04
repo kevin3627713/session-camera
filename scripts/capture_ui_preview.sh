@@ -67,12 +67,34 @@ while IFS=$'\t' read -r layout simulator_id device_name runtime; do
   xcrun simctl status_bar "$simulator_id" override --time 9:41 --batteryState charged --batteryLevel 100
   xcrun simctl ui "$simulator_id" appearance dark
   xcrun simctl install "$simulator_id" "$app"
+  data_directory="$(xcrun simctl get_app_container "$simulator_id" com.kevin3627713.sessioncamera.uipreview data)"
   for screen in camera controls video gallery editor crop grid; do
+    marker="$data_directory/Documents/ui-preview-ready-$screen"
+    rm -f "$marker"
     xcrun simctl terminate "$simulator_id" com.kevin3627713.sessioncamera.uipreview 2>/dev/null || true
     xcrun simctl launch "$simulator_id" com.kevin3627713.sessioncamera.uipreview \
       -AppleLanguages '(zh-Hans)' -AppleLocale zh_CN --screen "$screen"
-    sleep 3
+    for attempt in $(seq 1 90); do
+      if [ -f "$marker" ]; then break; fi
+      sleep 1
+    done
+    if [ ! -f "$marker" ]; then
+      echo "Requested $layout/$screen did not finish rendering within 90 seconds." >&2
+      exit 1
+    fi
     xcrun simctl io "$simulator_id" screenshot "artifacts/ui/$layout-$screen.png"
   done
   xcrun simctl shutdown "$simulator_id"
 done < artifacts/ui/selected-devices.tsv
+
+python3 - <<'PY'
+import hashlib
+from pathlib import Path
+screens = ["camera", "controls", "video", "gallery", "editor", "crop", "grid"]
+for row in Path("artifacts/ui/selected-devices.tsv").read_text().splitlines():
+    layout = row.split("\t")[0]
+    hashes = [hashlib.sha256(Path(f"artifacts/ui/{layout}-{screen}.png").read_bytes()).hexdigest()
+              for screen in screens]
+    assert len(set(hashes)) == len(screens), f"Duplicate screenshots for {layout}: a requested screen was not captured"
+print("All requested screenshots are present and distinct.")
+PY

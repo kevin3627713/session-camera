@@ -319,6 +319,9 @@ struct PhotoEditorView: View {
             }.value
             guard !Task.isCancelled else { return }
             preview = image
+            #if CAMERA_UI_PREVIEW
+            if image != nil { CameraUIPreview.reportReady(CameraUIPreview.screen) }
+            #endif
         }
     }
 }

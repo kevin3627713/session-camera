@@ -12,6 +12,18 @@ enum CameraUIPreview {
     }
     static let image = makeImage(variant: 5)
 
+    // A screenshot must wait for the requested view and its image rendering,
+    // rather than assuming every simulator launch finishes within three seconds.
+    static func reportReady(_ state: String) {
+        guard screen == state else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let marker = directory.appendingPathComponent("ui-preview-ready-\(state)")
+            try? Data(state.utf8).write(to: marker, options: .atomic)
+        }
+    }
+
     // Original, procedurally drawn still life for reproducible UI screenshots.
     // No network image, photo-library access or camera hardware is involved.
     static func makeImage(variant: Int) -> UIImage {

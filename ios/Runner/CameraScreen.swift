@@ -75,6 +75,7 @@ struct CameraScreen: View {
                 selectedControl = controlsVisible ? .exposure : nil
                 galleryVisible = ["gallery", "editor", "crop", "grid"].contains(CameraUIPreview.screen)
                 setupDone = true
+                if !galleryVisible { CameraUIPreview.reportReady(CameraUIPreview.screen) }
                 return
             }
             #endif
@@ -89,6 +90,9 @@ struct CameraScreen: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            #if CAMERA_UI_PREVIEW
+            if CameraUIPreview.enabled { return }
+            #endif
             active = false
             countdownTask?.cancel()
             countdown = 0
@@ -686,6 +690,7 @@ struct SessionGallery: View {
             #if CAMERA_UI_PREVIEW
             if ["editor", "crop"].contains(CameraUIPreview.screen) { editing = store.captures.last }
             if CameraUIPreview.screen == "grid" { gridVisible = true }
+            CameraUIPreview.reportReady("gallery")
             #endif
         }
         .onChange(of: store.sessionID) { _ in dismiss() }
@@ -778,8 +783,11 @@ struct SessionGallery: View {
                 }
                 .padding(.horizontal, max(0, UIScreen.main.bounds.width / 2 - 19))
             }
-            .onChange(of: selected) { id in
-                if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .center) } }
+            .task(id: selected) {
+                // The initial selection is set while the gallery appears;
+                // wait for the strip's layout before centering that thumbnail.
+                await Task.yield()
+                if let id = selected { proxy.scrollTo(id, anchor: .center) }
             }
         }.frame(height: 32)
     }
@@ -867,6 +875,9 @@ struct SessionPhotoGrid: View {
                 }
                 .onChange(of: store.sessionID) { _ in dismiss() }
         }.preferredColorScheme(.light).statusBarHidden(false)
+        #if CAMERA_UI_PREVIEW
+        .onAppear { CameraUIPreview.reportReady("grid") }
+        #endif
     }
 }
 
