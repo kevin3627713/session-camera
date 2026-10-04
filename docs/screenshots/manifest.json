@@ -1,0 +1,133 @@
+{
+  "source_commit": "f1e0982f18aebacaa06ebc6e9f48d13eddb91955",
+  "workflow_run": "https://github.com/kevin3627713/session-camera/actions/runs/37194854719",
+  "workflow_conclusion": "success",
+  "workflow_updated_at": "2026-10-04T10:32:43Z",
+  "content": "Original procedurally drawn test still life; no user reference photos.",
+  "devices": [
+    {
+      "layout": "regular",
+      "name": "iPhone 13 (390x844 reference geometry)",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-18-6"
+    },
+    {
+      "layout": "compact",
+      "name": "iPhone SE (3rd generation)",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-18-6"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "regular-camera.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "3a251c99660365187dda502fa59fe35de92ab0f99da8979dcd0da49878082fc5"
+    },
+    {
+      "file": "regular-controls.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "8ea76e79fb675bbd5f293c004afdd27a53af95faef9a457e554c5f5d334539c7"
+    },
+    {
+      "file": "regular-video.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "6012a85efe1145757ccf9380b1b30e655f8a3b923534abf01b154740f0bfae76"
+    },
+    {
+      "file": "regular-gallery.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "bdde21caebc4e68eea4754e91e8b19ae0c0100488592ae99f97043e87a5dc182"
+    },
+    {
+      "file": "regular-editor.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "6992287b53350250ad4206d7917be1c7cc3b5fcdd7dcce36e9da75bdff92c813"
+    },
+    {
+      "file": "regular-crop.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "505d56c972a436b369a7740590a5fa652cbd5bc909a2f22a96c843ce459be7e8"
+    },
+    {
+      "file": "regular-grid.png",
+      "pixel_size": [
+        1170,
+        2532
+      ],
+      "sha256": "b71e76f3d470ec5cd9a17826e8e89cd2c5d39226504efab54f22fe551d54f523"
+    },
+    {
+      "file": "compact-camera.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "1d173c178da2ea4bae0a50c23b263895b55b035176152d9587d167793b3623c1"
+    },
+    {
+      "file": "compact-controls.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "087070573feb57c06c7a0e7c71a0bfb64182cbd7331581bf7766a25f99c7f35b"
+    },
+    {
+      "file": "compact-video.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "b36f14c2a85908e02a647a0b468a288c568200be0e8efa13feb6ff3382025afa"
+    },
+    {
+      "file": "compact-gallery.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "02fa6da8cc06b40375db1d25f4c5441b5d0f566c76ffcd6e9328893b0e35b335"
+    },
+    {
+      "file": "compact-editor.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "f526dc8ca8cf4793b1d15e2d782bd3fd3adaabc78a31b84c3488d883ed75c5f4"
+    },
+    {
+      "file": "compact-crop.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "3241c8f369b8afd0bdd2b0c4c1a06d368fc38bc09c7db60e042267a3dfcb78fb"
+    },
+    {
+      "file": "compact-grid.png",
+      "pixel_size": [
+        750,
+        1334
+      ],
+      "sha256": "e4fea9f97e3d50c61c081d1b558d74eaf8a084e56ebe3d0cb6fcec295a14d3fe"
+    }
+  ]
+}

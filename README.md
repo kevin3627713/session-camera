@@ -6,6 +6,16 @@
 
 Public repository: https://github.com/kevin3627713/session-camera
 
+## 界面预览
+
+下图是复用正式 Swift 界面的 iOS 18 模拟器截图，取景内容是专门绘制的测试图。用户提供的真机照片和截图只保留在本地参考目录。
+
+| 相机 | 本次照片 | 照片编辑 |
+| --- | --- | --- |
+| <img src="docs/screenshots/regular-camera.png" width="250" alt="16:9 相机界面"> | <img src="docs/screenshots/regular-gallery.png" width="250" alt="浅色本次照片界面"> | <img src="docs/screenshots/regular-editor.png" width="250" alt="照片调整界面"> |
+
+完整的两种屏幕尺寸、七种页面状态及来源记录见 [截图目录](docs/screenshots) 和 [界面检查说明](docs/UI_DESIGN.md)。
+
 ## 使用
 
 1. 下载 [Releases](https://github.com/kevin3627713/session-camera/releases) 的 `session-camera-unsigned.ipa`，或从 [Actions](https://github.com/kevin3627713/session-camera/actions) 下载构建产物。
