@@ -33,6 +33,7 @@ final class CameraEngine: NSObject, ObservableObject {
     private var currentMode = CameraMode.photo
     private var position = AVCaptureDevice.Position.back
     private var wantsRunning = false
+    private var focusRequest: UInt64 = 0
     private var observers: [NSObjectProtocol] = []
 
     override init() {
@@ -111,7 +112,9 @@ final class CameraEngine: NSObject, ObservableObject {
     }
 
     private func configurePhotoDimensions(_ device: AVCaptureDevice) {
-        if let dimensions = device.activeFormat.supportedMaxPhotoDimensions.max(by: {
+        let supported = device.activeFormat.supportedMaxPhotoDimensions
+        let standard = supported.filter { Int64($0.width) * Int64($0.height) <= 13_000_000 }
+        if let dimensions = (standard.isEmpty ? supported : standard).max(by: {
             Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height)
         }) { photos.maxPhotoDimensions = dimensions }
     }
@@ -221,19 +224,33 @@ final class CameraEngine: NSObject, ObservableObject {
     func focus(at point: CGPoint, lock: Bool = false) {
         queue.async {
             guard let device = self.input?.device else { return }
+            self.focusRequest += 1
+            let request = self.focusRequest
             do {
                 try device.lockForConfiguration()
                 if device.isFocusPointOfInterestSupported {
                     device.focusPointOfInterest = point
-                    let mode: AVCaptureDevice.FocusMode = lock ? .locked : .autoFocus
-                    if device.isFocusModeSupported(mode) { device.focusMode = mode }
+                    if device.isFocusModeSupported(.autoFocus) { device.focusMode = .autoFocus }
                 }
                 if device.isExposurePointOfInterestSupported {
                     device.exposurePointOfInterest = point
-                    let mode: AVCaptureDevice.ExposureMode = lock ? .locked : .continuousAutoExposure
-                    if device.isExposureModeSupported(mode) { device.exposureMode = mode }
+                    if device.isExposureModeSupported(.continuousAutoExposure) {
+                        device.exposureMode = .continuousAutoExposure
+                    }
                 }
                 device.unlockForConfiguration()
+                if lock {
+                    self.queue.asyncAfter(deadline: .now() + 0.65) {
+                        guard self.focusRequest == request, self.input?.device.uniqueID == device.uniqueID,
+                              self.wantsRunning else { return }
+                        do {
+                            try device.lockForConfiguration()
+                            if device.isFocusModeSupported(.locked) { device.focusMode = .locked }
+                            if device.isExposureModeSupported(.locked) { device.exposureMode = .locked }
+                            device.unlockForConfiguration()
+                        } catch { self.report(error) }
+                    }
+                }
             } catch { self.report(error) }
         }
     }

@@ -391,7 +391,7 @@ struct SessionGallery: View {
                     VStack(spacing: 10) {
                         TabView(selection: $selected) {
                             ForEach(store.captures) { item in
-                                SessionMediaView(capture: item).tag(Optional(item.id))
+                                SessionMediaView(capture: item, isSelected: item.id == selected).tag(Optional(item.id))
                             }
                         }.tabViewStyle(.page(indexDisplayMode: .never))
                         if let item = current {
@@ -452,6 +452,7 @@ struct SessionGallery: View {
 
 struct SessionMediaView: View {
     let capture: SessionCapture
+    let isSelected: Bool
     @State private var player: AVPlayer?
     @State private var image: UIImage?
 
@@ -464,11 +465,16 @@ struct SessionMediaView: View {
                 ZoomablePhoto(image: image)
             } else { ProgressView() }
         }
-        .task(id: capture.displayURL) {
+        .task(id: capture.displayURL.absoluteString + (isSelected ? "selected" : "preview")) {
+            guard isSelected else { player?.pause(); player = nil; image = nil; return }
             if capture.kind == .video { player = AVPlayer(url: capture.displayURL) }
             else {
                 let url = capture.displayURL
-                image = await Task.detached { MediaThumbnails.make(url: url, kind: .photo) }.value
+                let loaded = await Task.detached {
+                    MediaThumbnails.make(url: url, kind: .photo, maxPixelSize: 4096)
+                }.value
+                guard !Task.isCancelled else { return }
+                image = loaded
             }
         }
         .onDisappear { player?.pause(); player = nil; image = nil }

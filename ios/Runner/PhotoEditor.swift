@@ -135,7 +135,7 @@ struct PhotoEditorView: View {
             } message: { Text(error ?? "") }
             .task {
                 let image = await Task.detached {
-                    MediaThumbnails.make(url: capture.originalURL, kind: .photo)
+                    MediaThumbnails.make(url: capture.originalURL, kind: .photo, maxPixelSize: 1600)
                 }.value
                 if let image { previewInput = CIImage(image: image) }
                 schedulePreview()

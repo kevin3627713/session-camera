@@ -156,6 +156,8 @@ final class SessionStore: ObservableObject {
 
     func receive(photo data: Data, ticket: CaptureTicket) {
         Task {
+            let lease = SaveBackgroundLease()
+            defer { lease.end() }
             do {
                 let url = try await vault.persist(data: data, id: ticket.captureID)
                 await registerAndSave(url: url, kind: .photo, ticket: ticket)
@@ -165,6 +167,8 @@ final class SessionStore: ObservableObject {
 
     func receive(movie url: URL, ticket: CaptureTicket) {
         Task {
+            let lease = SaveBackgroundLease()
+            defer { lease.end() }
             do {
                 let persisted = try await vault.persist(movie: url, id: ticket.captureID)
                 await registerAndSave(url: persisted, kind: .video, ticket: ticket)
@@ -203,6 +207,7 @@ final class SessionStore: ObservableObject {
             }
             message = error.localizedDescription
         }
+        pendingRecoveryCount = (try? await vault.pendingFiles().count) ?? pendingRecoveryCount
     }
 
     func retryPending() async {
@@ -273,6 +278,21 @@ final class SessionStore: ObservableObject {
 }
 
 @MainActor
+private final class SaveBackgroundLease {
+    private var identifier = UIBackgroundTaskIdentifier.invalid
+    init() {
+        identifier = UIApplication.shared.beginBackgroundTask(withName: "Save captured media") { [weak self] in
+            self?.end()
+        }
+    }
+    func end() {
+        guard identifier != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(identifier)
+        identifier = .invalid
+    }
+}
+
+@MainActor
 enum PhotosWriter {
     static func add(url: URL, kind: CaptureKind) async throws -> String {
         let readStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -330,11 +350,11 @@ enum PhotosWriter {
 }
 
 enum MediaThumbnails {
-    static func make(url: URL, kind: CaptureKind) -> UIImage? {
+    static func make(url: URL, kind: CaptureKind, maxPixelSize: Int = 256) -> UIImage? {
         if kind == .video {
             let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
             generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 900, height: 900)
+            generator.maximumSize = CGSize(width: CGFloat(maxPixelSize), height: CGFloat(maxPixelSize))
             guard let image = try? generator.copyCGImage(at: .zero, actualTime: nil) else { return nil }
             return UIImage(cgImage: image)
         }
@@ -342,7 +362,7 @@ enum MediaThumbnails {
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 1600
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
               ] as CFDictionary) else { return nil }
         return UIImage(cgImage: image)
     }
