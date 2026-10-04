@@ -196,7 +196,7 @@ final class CameraEngine: NSObject, ObservableObject {
                 }
             } else {
                 if self.session.outputs.contains(self.movies) { self.session.removeOutput(self.movies) }
-                if let audioInput { self.session.removeInput(audioInput); self.audioInput = nil }
+                if let audioInput = self.audioInput { self.session.removeInput(audioInput); self.audioInput = nil }
                 self.session.sessionPreset = .photo
             }
             if let device = self.input?.device { self.configurePhotoDimensions(device) }

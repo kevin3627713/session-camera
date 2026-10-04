@@ -57,7 +57,7 @@ flutter build ios --release --no-codesign
 bash scripts/package_unsigned_ipa.sh
 ```
 
-推送 `main` 或 `v*` 标签会运行 [构建工作流](.github/workflows/release-ios-unsigned.yml)，标签构建通过后自动发布带 IPA 的 Release。Swift 测试验证会话隔离、旧回调拒绝、旧编辑拒绝、去重和重新启动隔离。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
+推送 `main` 或 `v*` 标签会运行 [构建工作流](.github/workflows/release-ios-unsigned.yml)，标签构建通过后自动发布带 IPA 的 Release。Swift 测试验证会话隔离、旧回调拒绝、旧编辑拒绝、去重和重新启动隔离。iPhone 模拟器原生 XCTest 验证旋转、裁剪坐标与 EXIF 方向是否正确写入编辑后的 JPEG，并提供真实模拟器截图。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
 
 ## 模板来源
 

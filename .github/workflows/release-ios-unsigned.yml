@@ -37,6 +37,15 @@ jobs:
         run: flutter build ios --release --no-codesign
       - name: Package and validate unsigned IPA
         run: bash scripts/package_unsigned_ipa.sh
+      - name: Test photo editing on iPhone simulator
+        run: bash scripts/test_ios_simulator.sh
+      - name: Upload native test results and simulator screenshot
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: native-verification-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v5
         with:
           name: session-camera-unsigned-${{ github.run_number }}

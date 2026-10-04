@@ -71,7 +71,7 @@ actor CaptureVault {
         try Data().write(to: marker(url), options: .atomic)
         try FileManager.default.moveItem(at: movie, to: url)
         try FileManager.default.setAttributes(
-            [.protectionKey: FileProtectionType.completeUnlessOpen], atPath: url.path)
+            [.protectionKey: FileProtectionType.completeUnlessOpen], ofItemAtPath: url.path)
         return url
     }
 
