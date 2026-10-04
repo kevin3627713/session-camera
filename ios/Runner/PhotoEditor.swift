@@ -323,7 +323,7 @@ struct PhotoEditorView: View {
     }
 }
 
-private struct CropCorners: Shape {
+struct CropCorners: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let length: CGFloat = 22

@@ -17,6 +17,7 @@ struct SessionCapture: Identifiable {
     var saveState: SaveState = .saving
     var adjustments = PhotoAdjustments()
     var capturedAt = Date()
+    var isFavorite = false
     var id: UUID { ticket.captureID }
 }
 
@@ -135,9 +136,10 @@ final class SessionStore: ObservableObject {
             guard ledger.admit(ticket) else { continue }
             let image = CameraUIPreview.makeImage(variant: index)
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("ui-preview-\(index).jpg")
-            try? image.jpegData(compressionQuality: 0.95)?.write(to: url)
+            let data = try? PhotoRendering.captureJPEG(image.jpegData(compressionQuality: 0.95)!, aspect: .wide)
+            try? data?.write(to: url)
             captures.append(SessionCapture(ticket: ticket, kind: .photo, originalURL: url,
-                displayURL: url, thumbnail: image, assetID: "ui-preview-\(index)", saveState: .saved,
+                displayURL: url, thumbnail: data.flatMap { UIImage(data: $0) }, assetID: "ui-preview-\(index)", saveState: .saved,
                 capturedAt: Date(timeIntervalSince1970: 1_791_097_200)))
         }
     }
@@ -146,6 +148,17 @@ final class SessionStore: ObservableObject {
     func issueTicket() -> CaptureTicket { ledger.issueTicket() }
     func isCurrent(_ ticket: CaptureTicket) -> Bool { ledger.contains(ticket) }
     func capture(_ id: UUID) -> SessionCapture? { captures.first { $0.id == id } }
+
+    func toggleFavorite(_ item: SessionCapture) async throws {
+        guard ledger.contains(item.ticket), let assetID = item.assetID else { throw CameraFailure.expired }
+        let favorite = !item.isFavorite
+        try await PhotosWriter.favorite(assetID: assetID, value: favorite,
+                                        stillCurrent: { self.ledger.contains(item.ticket) })
+        guard ledger.contains(item.ticket), let index = captures.firstIndex(where: { $0.id == item.id }) else {
+            throw CameraFailure.expired
+        }
+        captures[index].isFavorite = favorite
+    }
 
     func prepareLibrary() async {
         // Suppress all hardware/permission work in XCTest's hosted process.
@@ -311,6 +324,22 @@ private final class SaveBackgroundLease {
 
 @MainActor
 enum PhotosWriter {
+    static func favorite(assetID: String, value: Bool,
+                         stillCurrent: @escaping @MainActor () -> Bool) async throws {
+        guard stillCurrent() else { throw CameraFailure.expired }
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject,
+              asset.canPerform(.properties) else { throw CameraFailure.missingAsset }
+        guard stillCurrent() else { throw CameraFailure.expired }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest(for: asset).isFavorite = value
+            }) { success, error in
+                if success { continuation.resume() }
+                else { continuation.resume(throwing: error ?? CameraFailure.saveFailed) }
+            }
+        }
+    }
+
     static func add(url: URL, kind: CaptureKind) async throws -> String {
         let readStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard readStatus == .authorized || readStatus == .limited ||
@@ -336,7 +365,7 @@ enum PhotosWriter {
     static func edit(assetID: String, jpeg: Data, adjustments: PhotoAdjustments,
                      stillCurrent: @escaping @MainActor () -> Bool) async throws {
         guard stillCurrent() else { throw CameraFailure.expired }
-        // The only Photos read in the app. No collection, all-assets or date query.
+        // Edit and favorite read only current IDs. No collection or date query.
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject,
               asset.canPerform(.content) else { throw CameraFailure.missingAsset }
         let options = PHContentEditingInputRequestOptions()

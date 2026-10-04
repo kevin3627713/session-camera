@@ -26,3 +26,6 @@ native/SessionCore/.swiftpm/
 *.iml
 artifacts/
 Payload/
+
+# Local phone reference images supplied during UI design
+/assets/

@@ -29,6 +29,7 @@ final class CameraEngine: NSObject, ObservableObject {
     private var input: AVCaptureDeviceInput?
     private var audioInput: AVCaptureDeviceInput?
     private var photoTickets: [Int64: CaptureTicket] = [:]
+    private var photoAspects: [Int64: CaptureAspect] = [:]
     private var movieTicket: CaptureTicket?
     private var currentMode = CameraMode.photo
     private var position = AVCaptureDevice.Position.back
@@ -61,8 +62,7 @@ final class CameraEngine: NSObject, ObservableObject {
     func loadUIPreview() {
         ready = true
         lenses = [CameraLens(id: "preview-ultra", label: "0.5"),
-                  CameraLens(id: "preview-wide", label: "1"),
-                  CameraLens(id: "preview-tele", label: "5")]
+                  CameraLens(id: "preview-wide", label: "1")]
         selectedLens = "preview-wide"
     }
     #endif
@@ -277,7 +277,7 @@ final class CameraEngine: NSObject, ObservableObject {
         }
     }
 
-    func takePhoto(ticket: CaptureTicket, flash: AVCaptureDevice.FlashMode) {
+    func takePhoto(ticket: CaptureTicket, flash: AVCaptureDevice.FlashMode, aspect: CaptureAspect = .standard) {
         let orientation = Self.captureOrientation()
         queue.async {
             guard self.session.isRunning, self.currentMode == .photo,
@@ -288,6 +288,7 @@ final class CameraEngine: NSObject, ObservableObject {
             if device.hasFlash && device.isFlashAvailable { settings.flashMode = flash }
             self.orient(self.photos.connection(with: .video), orientation: orientation)
             self.photoTickets[settings.uniqueID] = ticket
+            self.photoAspects[settings.uniqueID] = aspect
             DispatchQueue.main.async { self.capturing = true }
             self.photos.capturePhoto(with: settings, delegate: self)
         }
@@ -364,7 +365,15 @@ extension CameraEngine: AVCapturePhotoCaptureDelegate {
             guard let ticket = self.photoTickets[photo.resolvedSettings.uniqueID] else { return }
             if let error { self.report(error) }
             else if let data = photo.fileDataRepresentation() {
-                DispatchQueue.main.async { self.onPhoto?(data, ticket) }
+                let aspect = self.photoAspects[photo.resolvedSettings.uniqueID] ?? .standard
+                do {
+                    let cropped = try PhotoRendering.captureJPEG(data, aspect: aspect)
+                    DispatchQueue.main.async { self.onPhoto?(cropped, ticket) }
+                } catch {
+                    // Retain the original shot if rendering fails.
+                    self.report(error)
+                    DispatchQueue.main.async { self.onPhoto?(data, ticket) }
+                }
             } else { self.report(CameraFailure.invalidImage) }
         }
     }
@@ -373,6 +382,7 @@ extension CameraEngine: AVCapturePhotoCaptureDelegate {
                      error: Error?) {
         queue.async {
             self.photoTickets.removeValue(forKey: resolvedSettings.uniqueID)
+            self.photoAspects.removeValue(forKey: resolvedSettings.uniqueID)
             DispatchQueue.main.async { self.capturing = false }
             if let error { self.report(error) }
         }

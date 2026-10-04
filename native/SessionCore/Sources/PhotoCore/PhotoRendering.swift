@@ -3,6 +3,17 @@ import CoreImage.CIFilterBuiltins
 import Foundation
 import ImageIO
 
+public enum CaptureAspect: String, CaseIterable {
+    case standard = "4:3", wide = "16:9", square = "1:1"
+    public var portraitRatio: Double {
+        switch self {
+        case .standard: return 3.0 / 4
+        case .wide: return 9.0 / 16
+        case .square: return 1
+        }
+    }
+}
+
 public struct PhotoAdjustments: Codable, Equatable {
     public var exposure: Double = 0
     public var contrast: Double = 1
@@ -59,6 +70,26 @@ public enum PhotoRendering {
               let rendered = cgImage(input, adjustments: adjustments) else {
             throw PhotoRenderFailure.invalidImage
         }
+        return try encodeJPEG(rendered)
+    }
+
+    /// Crop the saved photo to the same aspect as the viewfinder, after baking
+    /// its EXIF orientation. Standard mode retains the camera's original data.
+    public static func captureJPEG(_ original: Data, aspect: CaptureAspect) throws -> Data {
+        guard aspect != .standard else { return original }
+        guard let input = CIImage(data: original, options: [.applyOrientationProperty: true]) else {
+            throw PhotoRenderFailure.invalidImage
+        }
+        var adjustments = PhotoAdjustments()
+        adjustments.cropRatio = input.extent.width > input.extent.height
+            ? 1 / aspect.portraitRatio : aspect.portraitRatio
+        guard let rendered = cgImage(input, adjustments: adjustments) else {
+            throw PhotoRenderFailure.invalidImage
+        }
+        return try encodeJPEG(rendered)
+    }
+
+    private static func encodeJPEG(_ rendered: CGImage) throws -> Data {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, "public.jpeg" as CFString, 1, nil) else {
             throw PhotoRenderFailure.invalidImage

@@ -39,12 +39,21 @@ codesign --force --sign - "$app"
 
 xcrun simctl list devices available --json > artifacts/ui/devices.json
 python3 - <<'PY' > artifacts/ui/selected-devices.tsv
-import json
+import json, subprocess
 data = json.load(open("artifacts/ui/devices.json"))["devices"]
 runtimes = sorted((key for key in data if ".iOS-" in key), reverse=True)
 runtime = next((key for key in runtimes if ".iOS-18-" in key), runtimes[0])
 devices = [device for device in data[runtime] if device["name"].startswith("iPhone")]
-regular = next((d for d in devices if d["name"] == "iPhone 16 Pro"), devices[0])
+regular = next((d for d in devices if d["name"] == "iPhone 13"), None)
+if regular is None:
+    device_types = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "--json"]))["devicetypes"]
+    reference_type = next((d for d in device_types if d["identifier"].endswith(".iPhone-13")), None)
+    if reference_type:
+        identifier = subprocess.check_output(["xcrun", "simctl", "create", "iPhone 13 Reference",
+                                             reference_type["identifier"], runtime], text=True).strip()
+        regular = {"udid": identifier, "name": "iPhone 13 (390x844 reference geometry)"}
+    else:
+        regular = next((d for d in devices if d["name"] == "iPhone 16 Pro"), devices[0])
 compact = next((d for d in devices if "SE" in d["name"]), None)
 print("regular", regular["udid"], regular["name"], runtime, sep="\t")
 if compact:
@@ -58,7 +67,7 @@ while IFS=$'\t' read -r layout simulator_id device_name runtime; do
   xcrun simctl status_bar "$simulator_id" override --time 9:41 --batteryState charged --batteryLevel 100
   xcrun simctl ui "$simulator_id" appearance dark
   xcrun simctl install "$simulator_id" "$app"
-  for screen in camera controls video gallery editor crop; do
+  for screen in camera controls video gallery editor crop grid; do
     xcrun simctl terminate "$simulator_id" com.kevin3627713.sessioncamera.uipreview 2>/dev/null || true
     xcrun simctl launch "$simulator_id" com.kevin3627713.sessioncamera.uipreview \
       -AppleLanguages '(zh-Hans)' -AppleLocale zh_CN --screen "$screen"

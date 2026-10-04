@@ -4,6 +4,45 @@ import XCTest
 @testable import PhotoCore
 
 final class PhotoRenderingTests: XCTestCase {
+    func testWideCaptureMatchesPortraitViewfinderAfterEXIFRotation() throws {
+        let original = try makeJPEG(width: 640, height: 480, orientation: 6)
+        let data = try PhotoRendering.captureJPEG(original, aspect: .wide)
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        XCTAssertEqual(image.width, 360)
+        XCTAssertEqual(image.height, 640)
+        let decoded = try XCTUnwrap(CIImage(data: data, options: [.applyOrientationProperty: true]))
+        XCTAssertEqual(decoded.extent.width, 360)
+        XCTAssertEqual(decoded.extent.height, 640)
+    }
+
+    func testWideAndSquareCapturePreserveLandscapeOrientation() throws {
+        let original = try makeJPEG(width: 640, height: 480, orientation: 1)
+        for (aspect, width, height) in [(CaptureAspect.wide, 640, 360), (.square, 480, 480)] {
+            let data = try PhotoRendering.captureJPEG(original, aspect: aspect)
+            let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+            let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+            XCTAssertEqual(image.width, width)
+            XCTAssertEqual(image.height, height)
+        }
+    }
+
+    func testStandardCaptureRetainsOriginalCameraJPEGAndMetadata() throws {
+        let original = try makeJPEG(width: 640, height: 480, orientation: 6)
+        XCTAssertEqual(try PhotoRendering.captureJPEG(original, aspect: .standard), original)
+    }
+
+    private func makeJPEG(width: Int, height: Int, orientation: Int) throws -> Data {
+        let input = CIImage(color: CIColor(red: 0.3, green: 0.6, blue: 0.8))
+            .cropped(to: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        let image = try XCTUnwrap(CIContext().createCGImage(input, from: input.extent))
+        let buffer = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(buffer, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [kCGImagePropertyOrientation: orientation] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return buffer as Data
+    }
+
     func testQuarterTurnChangesPixelDimensionsWithoutOrientationMetadata() throws {
         let input = CIImage(color: CIColor(red: 1, green: 0, blue: 0))
             .cropped(to: CGRect(x: 0, y: 0, width: 320, height: 240))

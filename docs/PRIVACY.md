@@ -12,7 +12,7 @@
 
 由于需要修改系统照片中的同一条记录，申请 `.readWrite`。推荐有限访问：Apple 明确说明应用新创建的资产会自动加入该应用的有限访问范围：[WWDC20](https://developer.apple.com/videos/play/wwdc2020/10641/)。
 
-唯一的 Photos 读取是 `PhotosWriter.edit` 中的 `PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil)`。这个 ID 来自创建本次资产的 placeholder，仅由 SessionStore 在当前 ticket 合法且该条本次照片仍存在时传入。再次检查会话后，使用 `requestContentEditingInput` / `PHContentEditingOutput` / `PHAdjustmentData` / `PHAssetChangeRequest` 修改原记录。读取和修改前后都有会话校验。
+Photos 读取只用于编辑和收藏，均通过 PHAsset.fetchAssets(withLocalIdentifiers:) 请求当前资产 ID。ID 来自创建本次资产的 placeholder，仅由 SessionStore 在当前 ticket 合法且该条本次照片仍存在时传入。编辑使用 requestContentEditingInput / PHContentEditingOutput / PHAdjustmentData / PHAssetChangeRequest；收藏只更新 isFavorite。读取和修改前后均检查当前会话。照片网格和胶片条完全来自当前内存列表，没有引入新的图库查询。
 
 没有图库全量查询、相册枚举、按时间搜索、系统照片挑选器、有限访问管理 picker、导入旧照片入口、系统照片跳转、系统相册删除请求或照片分享入口。`PHPhotoLibraryPreventAutomaticLimitedAccessAlert` 阻止启动时自动展示有限相册管理界面。仅添加权限时只支持保存，编辑会明确报无法访问。系统仍可能要求用户确认每次修改。
 
