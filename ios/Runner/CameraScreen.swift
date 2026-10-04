@@ -180,7 +180,10 @@ struct CameraScreen: View {
             ZStack(alignment: .bottom) {
                 #if CAMERA_UI_PREVIEW
                 if CameraUIPreview.enabled {
-                    Image(uiImage: CameraUIPreview.image).resizable().scaledToFill()
+                    GeometryReader { bounds in
+                        Image(uiImage: CameraUIPreview.image).resizable().scaledToFill()
+                            .frame(width: bounds.size.width, height: bounds.size.height).clipped()
+                    }
                 } else { CameraPreview(engine: engine) }
                 #else
                 CameraPreview(engine: engine)
