@@ -686,7 +686,7 @@ struct SessionGallery: View {
         .statusBarHidden(!chromeVisible)
         .buttonStyle(.plain)
         .onAppear {
-            selected = store.captures.last?.id
+            if selected == nil { selected = store.captures.last?.id }
             #if CAMERA_UI_PREVIEW
             if ["editor", "crop"].contains(CameraUIPreview.screen) { editing = store.captures.last }
             if CameraUIPreview.screen == "grid" { gridVisible = true }
