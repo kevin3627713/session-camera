@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000005 /* PhotoRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PhotoRendering.swift */; };
 		A10000000000000000000000 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000000 /* SessionStore.swift */; };
 		A10000000000000000000001 /* PhotoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* PhotoEditor.swift */; };
 		A10000000000000000000002 /* CameraEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* CameraEngine.swift */; };
@@ -45,6 +46,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A20000000000000000000005 /* PhotoRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoRendering.swift; path = ../../native/SessionCore/Sources/PhotoCore/PhotoRendering.swift; sourceTree = "<group>"; };
 		A20000000000000000000000 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStore.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* PhotoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoEditor.swift; path = PhotoEditor.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* CameraEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraEngine.swift; path = CameraEngine.swift; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 				A20000000000000000000002 /* CameraEngine.swift */,
 				A20000000000000000000003 /* CameraScreen.swift */,
 				A20000000000000000000004 /* SessionLedger.swift */,
+				A20000000000000000000005 /* PhotoRendering.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -289,6 +292,7 @@
 				A10000000000000000000002 /* CameraEngine.swift in Sources */,
 				A10000000000000000000003 /* CameraScreen.swift in Sources */,
 				A10000000000000000000004 /* SessionLedger.swift in Sources */,
+				A10000000000000000000005 /* PhotoRendering.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

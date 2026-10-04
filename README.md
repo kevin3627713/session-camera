@@ -57,7 +57,9 @@ flutter build ios --release --no-codesign
 bash scripts/package_unsigned_ipa.sh
 ```
 
-推送 `main` 或 `v*` 标签会运行 [构建工作流](.github/workflows/release-ios-unsigned.yml)，标签构建通过后自动发布带 IPA 的 Release。Swift 测试验证会话隔离、旧回调拒绝、旧编辑拒绝、去重和重新启动隔离。iPhone 模拟器原生 XCTest 验证旋转、裁剪坐标与 EXIF 方向是否正确写入编辑后的 JPEG，并提供真实模拟器截图。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
+推送 `main` 或 `v*` 标签会运行 [构建工作流](.github/workflows/release-ios-unsigned.yml)，标签构建通过后自动发布带 IPA 的 Release。7 项 Swift 测试验证会话隔离、旧回调拒绝、旧编辑拒绝、去重和重新启动隔离；3 项 Core Image / ImageIO 测试直接执行与 iOS 应用共用的渲染和 JPEG 编码源码，验证旋转、裁剪坐标与 EXIF 方向。
+
+`workflow_dispatch` 可选 `run_simulator`，运行额外的 iPhone 模拟器宿主测试并尝试截图；云端模拟器及 XCTest 启动耗时不稳定，默认发布流程依赖共享源码的原生渲染测试。模拟器版本已编译成功，宿主测试尚未取得通过结果，界面未经截图验收。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
 
 ## 模板来源
 

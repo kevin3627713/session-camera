@@ -2,60 +2,15 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import SwiftUI
 
-struct PhotoAdjustments: Codable, Equatable {
-    var exposure: Double = 0
-    var contrast: Double = 1
-    var saturation: Double = 1
-    var quarterTurns: Int = 0
-    var cropRatio: Double = 0 // 0 = original; crop is centered after rotation.
-    var cropX: Double = 0.5
-    var cropY: Double = 0.5
-    var monochrome = false
-}
-
 enum PhotoRenderer {
-    private static let context = CIContext()
-
     static func render(_ input: CIImage, adjustments: PhotoAdjustments) -> UIImage? {
-        var image = input
-        let angle = CGFloat(adjustments.quarterTurns % 4) * .pi / 2
-        image = image.transformed(by: CGAffineTransform(rotationAngle: angle))
-        image = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX,
-                                                       y: -image.extent.minY))
-        if adjustments.cropRatio > 0 {
-            let bounds = image.extent
-            let ratio = CGFloat(adjustments.cropRatio)
-            let size: CGSize = bounds.width / bounds.height > ratio
-                ? CGSize(width: bounds.height * ratio, height: bounds.height)
-                : CGSize(width: bounds.width, height: bounds.width / ratio)
-            let rect = CGRect(x: (bounds.width - size.width) * CGFloat(adjustments.cropX),
-                              y: (bounds.height - size.height) * CGFloat(adjustments.cropY),
-                              width: size.width, height: size.height)
-            image = image.cropped(to: rect)
-        }
-        let exposure = CIFilter.exposureAdjust()
-        exposure.inputImage = image
-        exposure.ev = Float(adjustments.exposure)
-        image = exposure.outputImage ?? image
-        let color = CIFilter.colorControls()
-        color.inputImage = image
-        color.contrast = Float(adjustments.contrast)
-        color.saturation = adjustments.monochrome ? 0 : Float(adjustments.saturation)
-        image = color.outputImage ?? image
-        guard let cgImage = context.createCGImage(image, from: image.extent) else { return nil }
-        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
+        guard let image = PhotoRendering.cgImage(input, adjustments: adjustments) else { return nil }
+        return UIImage(cgImage: image, scale: 1, orientation: .up)
     }
-
     static func jpeg(url: URL, adjustments: PhotoAdjustments) throws -> Data {
-        guard let input = CIImage(contentsOf: url, options: [.applyOrientationProperty: true]),
-              let rendered = render(input, adjustments: adjustments),
-              let data = rendered.jpegData(compressionQuality: 0.97) else {
-            throw CameraFailure.invalidImage
-        }
-        return data
+        try PhotoRendering.jpeg(url: url, adjustments: adjustments)
     }
 }
-
 struct PhotoEditorView: View {
     @ObservedObject var store: SessionStore
     let capture: SessionCapture

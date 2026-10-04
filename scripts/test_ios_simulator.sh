@@ -15,10 +15,11 @@ else:
 ')"
 xcrun simctl boot "$simulator_id" || true
 xcrun simctl bootstatus "$simulator_id" -b
-flutter build ios --simulator --debug --no-pub
+flutter build ios --simulator --debug --config-only --no-pub
 mkdir -p artifacts
 xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner \
   -destination "platform=iOS Simulator,id=$simulator_id" \
+  -parallel-testing-enabled NO \
   -resultBundlePath artifacts/PhotoRenderer.xcresult \
   CODE_SIGNING_ALLOWED=NO > artifacts/native-tests.log 2>&1 || {
     tail -n 100 artifacts/native-tests.log

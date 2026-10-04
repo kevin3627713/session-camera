@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      run_simulator:
+        description: Run optional hosted iPhone simulator tests and UI screenshot
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,7 +24,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
-      - name: Test session isolation
+      - name: Test session isolation and native photo rendering
         run: swift test --package-path native/SessionCore
       - name: Setup pinned Flutter
         run: |
@@ -38,6 +43,8 @@ jobs:
       - name: Package and validate unsigned IPA
         run: bash scripts/package_unsigned_ipa.sh
       - name: Test photo editing on iPhone simulator
+        if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
+        timeout-minutes: 15
         run: bash scripts/test_ios_simulator.sh
       - name: Upload native test results and simulator screenshot
         if: always()
