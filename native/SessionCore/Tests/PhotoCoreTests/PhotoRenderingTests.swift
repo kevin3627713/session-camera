@@ -41,6 +41,11 @@ final class PhotoRenderingTests: XCTestCase {
         XCTAssertEqual(result.width, 240)
         XCTAssertEqual(result.height, 320)
         let metadata = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source, 0, nil)) as NSDictionary
-        XCTAssertEqual(metadata[kCGImagePropertyOrientation] as? Int, 1)
+        // ImageIO can omit the default/up orientation. If present it must be up.
+        let orientation = metadata[kCGImagePropertyOrientation] as? Int
+        XCTAssertTrue(orientation == nil || orientation == 1)
+        let decoded = try XCTUnwrap(CIImage(data: data, options: [.applyOrientationProperty: true]))
+        XCTAssertEqual(decoded.extent.width, 240)
+        XCTAssertEqual(decoded.extent.height, 320)
     }
 }

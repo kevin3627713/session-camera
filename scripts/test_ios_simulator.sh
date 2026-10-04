@@ -18,6 +18,7 @@ xcrun simctl bootstatus "$simulator_id" -b
 flutter build ios --simulator --debug --config-only --no-pub
 mkdir -p artifacts
 xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner \
+  -derivedDataPath build/native-simulator \
   -destination "platform=iOS Simulator,id=$simulator_id" \
   -parallel-testing-enabled NO \
   -resultBundlePath artifacts/PhotoRenderer.xcresult \
@@ -29,7 +30,7 @@ tail -n 24 artifacts/native-tests.log
 
 # Real UI screenshot from a simulator (no camera hardware). These artifacts do
 # not claim real camera, permissions, signing or Guided Access were tested.
-xcrun simctl install "$simulator_id" build/ios/iphonesimulator/Runner.app
+xcrun simctl install "$simulator_id" build/native-simulator/Build/Products/Debug-iphonesimulator/Runner.app
 xcrun simctl privacy "$simulator_id" grant photos com.kevin3627713.sessioncamera
 xcrun simctl launch "$simulator_id" com.kevin3627713.sessioncamera
 sleep 5

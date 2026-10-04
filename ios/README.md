@@ -10,5 +10,6 @@
 - `SessionStore.swift`: 本次资产 ID 范围、保存重试、PhotoKit 非破坏性编辑。
 - `PhotoEditor.swift`: Core Image 渲染和照片编辑界面。
 - `SessionLedger.swift` 的工程引用指向 `native/SessionCore/Sources/SessionCore`，应用和测试使用同一份实现。
+- `PhotoRendering.swift` 的工程引用指向 `native/SessionCore/Sources/PhotoCore`，应用和 macOS CI 测试共用 Core Image / ImageIO 渲染及编码。
 
 使用步骤与权限边界见根目录 [README.md](../README.md)，原生渲染测试位于 `RunnerTests/RunnerTests.swift`。
