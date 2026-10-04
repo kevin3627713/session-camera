@@ -1,0 +1,28 @@
+# Repository-level ignores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Generated archives
+*.zip
+*.ipa
+
+# Never commit signing material
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.pem
+*.key
+
+# Flutter / Swift generated files
+.dart_tool/
+.flutter-plugins*
+.packages
+build/
+native/SessionCore/.build/
+native/SessionCore/.swiftpm/
+*.iml
+artifacts/
+Payload/

@@ -1,0 +1,30 @@
+# Flutter and Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# iOS generated caches
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# Secrets and signing files
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.pem
+*.key
+
+# Build outputs
+*.ipa
+*.xcarchive
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

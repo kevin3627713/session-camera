@@ -1,0 +1,53 @@
+name: Build unsigned iOS IPA
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unsigned-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test session isolation
+        run: swift test --package-path native/SessionCore
+      - name: Setup pinned Flutter
+        run: |
+          git clone --depth 1 --branch 3.35.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze Flutter shell
+        run: flutter analyze --fatal-infos
+      - name: Test native launch bridge
+        run: flutter test
+      - name: Build iPhone application without a certificate
+        run: flutter build ios --release --no-codesign
+      - name: Package and validate unsigned IPA
+        run: bash scripts/package_unsigned_ipa.sh
+      - uses: actions/upload-artifact@v5
+        with:
+          name: session-camera-unsigned-${{ github.run_number }}
+          path: session-camera-unsigned.ipa
+          if-no-files-found: error
+      - name: Publish tag release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" session-camera-unsigned.ipa \
+            --title "借拍 $GITHUB_REF_NAME" --notes-file docs/RELEASE_NOTES.md
+    permissions:
+      contents: write

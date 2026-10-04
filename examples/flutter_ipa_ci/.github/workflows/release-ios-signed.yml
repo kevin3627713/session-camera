@@ -1,0 +1,100 @@
+name: release-ios-signed
+
+on:
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: "Export method: ad-hoc, app-store, development, enterprise"
+        required: true
+        type: choice
+        options:
+          - ad-hoc
+          - app-store
+          - development
+          - enterprise
+        default: ad-hoc
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-signed:
+    name: Build signed IPA
+    runs-on: macos-latest
+    env:
+      BUNDLE_ID: com.example.ipaCiDemo
+      APPLE_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      EXPORT_METHOD: ${{ inputs.export_method }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        run: |
+          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Decode signing files
+        run: |
+          echo "${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/ios_distribution.p12"
+          echo "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+
+      - name: Install certificate and provisioning profile
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "${{ secrets.IOS_KEYCHAIN_PASSWORD }}" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "${{ secrets.IOS_KEYCHAIN_PASSWORD }}" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/ios_distribution.p12" \
+            -P "${{ secrets.IOS_CERTIFICATE_PASSWORD }}" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+
+      - name: Create ExportOptions.plist
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${EXPORT_METHOD}</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${BUNDLE_ID}</key>
+              <string>${PROFILE_UUID}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build signed IPA
+        run: |
+          flutter build ipa --release \
+            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios_signed_ipa
+          path: build/ios/ipa/*.ipa
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true

@@ -1,0 +1,83 @@
+name: release-ios-unsigned
+
+on:
+  push:
+    branches:
+      - test
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      run_check:
+        description: "Run Flutter checks before building"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Flutter project
+    if: github.event_name == 'push' || inputs.run_check == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        run: |
+          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+  build-ios:
+    name: Build unsigned IPA
+    needs: [verify]
+    if: always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create build name
+        run: |
+          ref_name="${GITHUB_REF_NAME:-manual}"
+          safe_ref_name="${ref_name//\//-}"
+          echo "BUILD_NAME=${safe_ref_name}" >> "$GITHUB_ENV"
+
+      - name: Setup Flutter
+        run: |
+          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS app without signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          if [ -d Payload/Runner.app/Frameworks ]; then
+            find Payload/Runner.app/Frameworks -type d -name "*.framework" -exec codesign --force --sign - --preserve-metadata=identifier,entitlements {} \;
+          fi
+          zip -q -r ipa_ci_demo_${{ env.BUILD_NAME }}_no_sign.ipa Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios_unsigned_ipa
+          path: ipa_ci_demo_*_no_sign.ipa
