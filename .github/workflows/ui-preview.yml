@@ -1,0 +1,33 @@
+name: Verify iOS 18 camera interface
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/Runner/*.swift'
+      - 'native/**'
+      - 'scripts/capture_ui_preview.sh'
+      - '.github/workflows/ui-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: camera-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compile native interface and capture iPhone screenshots
+        run: bash scripts/capture_ui_preview.sh
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: camera-ui-${{ github.run_number }}
+          path: artifacts/ui/
+          if-no-files-found: error

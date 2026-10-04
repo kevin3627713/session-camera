@@ -16,6 +16,7 @@ struct SessionCapture: Identifiable {
     var assetID: String?
     var saveState: SaveState = .saving
     var adjustments = PhotoAdjustments()
+    var capturedAt = Date()
     var id: UUID { ticket.captureID }
 }
 
@@ -125,6 +126,22 @@ final class SessionStore: ObservableObject {
     private let vault = CaptureVault.shared
 
     init() { sessionID = ledger.sessionID }
+
+    #if CAMERA_UI_PREVIEW
+    func loadUIPreview() {
+        photosAllowed = true
+        for index in 0..<6 {
+            let ticket = ledger.issueTicket()
+            guard ledger.admit(ticket) else { continue }
+            let image = CameraUIPreview.makeImage(variant: index)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("ui-preview-\(index).jpg")
+            try? image.jpegData(compressionQuality: 0.95)?.write(to: url)
+            captures.append(SessionCapture(ticket: ticket, kind: .photo, originalURL: url,
+                displayURL: url, thumbnail: image, assetID: "ui-preview-\(index)", saveState: .saved,
+                capturedAt: Date(timeIntervalSince1970: 1_791_097_200)))
+        }
+    }
+    #endif
 
     func issueTicket() -> CaptureTicket { ledger.issueTicket() }
     func isCurrent(_ ticket: CaptureTicket) -> Bool { ledger.contains(ticket) }

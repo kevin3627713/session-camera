@@ -57,6 +57,16 @@ final class CameraEngine: NSObject, ObservableObject {
 
     deinit { observers.forEach(NotificationCenter.default.removeObserver) }
 
+    #if CAMERA_UI_PREVIEW
+    func loadUIPreview() {
+        ready = true
+        lenses = [CameraLens(id: "preview-ultra", label: "0.5"),
+                  CameraLens(id: "preview-wide", label: "1"),
+                  CameraLens(id: "preview-tele", label: "5")]
+        selectedLens = "preview-wide"
+    }
+    #endif
+
     func start() {
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         Task { @MainActor in

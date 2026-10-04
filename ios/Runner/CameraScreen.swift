@@ -12,29 +12,44 @@ struct CameraScreen: View {
     @State private var countdownTask: Task<Void, Never>?
     @State private var exposure = 0.0
     @State private var controlsVisible = false
+    @State private var selectedControl: CaptureControl?
     @State private var galleryVisible = false
     @State private var guideVisible = false
     @State private var active = true
     @State private var setupDone = false
     @State private var guidedAccess = UIAccessibility.isGuidedAccessEnabled
     @State private var recordingStarted: Date?
+    @State private var shutterPulse = false
     @AppStorage("showGrid") private var grid = false
-    @AppStorage("remindGuidedAccess") private var remindGuidedAccess = true
+    @AppStorage("remindGuidedAccess") private var remindGuidedAccess = false
     @AppStorage("completedSetup") private var completedSetup = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            viewfinder
-            if controlsVisible { additionalControls }
-            modeSelector
-            shutterRow
-            Text("本次 \(store.captures.count) 项 · 自动存入照片")
-                .font(.caption2).foregroundStyle(.gray).padding(.bottom, 12)
+        GeometryReader { geometry in
+            let layout = CameraLayout(size: geometry.size, insets: geometry.safeAreaInsets, video: mode == .video)
+            ZStack(alignment: .top) {
+                Color.black
+                viewfinder
+                    .frame(width: layout.previewWidth, height: layout.previewHeight)
+                    .position(x: geometry.size.width / 2, y: layout.previewTop + layout.previewHeight / 2)
+                VStack(spacing: 0) {
+                    header.frame(height: 44).padding(.top, layout.topInset)
+                    Spacer(minLength: 0)
+                }
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    if controlsVisible { additionalControls }
+                    else { modeSelector }
+                    shutterRow.frame(height: layout.shutterHeight)
+                    Color.clear.frame(height: layout.bottomInset + layout.bottomSpacing)
+                }
+            }
         }
+        .ignoresSafeArea()
         .background(.black).foregroundStyle(.white).preferredColorScheme(.dark)
         .statusBarHidden()
-        .sheet(isPresented: $galleryVisible) {
+        .buttonStyle(.plain)
+        .fullScreenCover(isPresented: $galleryVisible) {
             SessionGallery(store: store).id(store.sessionID)
         }
         .sheet(isPresented: $guideVisible) {
@@ -46,6 +61,18 @@ struct CameraScreen: View {
             Button("应用权限设置") { openAppSettings() }
         } message: { Text(store.message ?? engine.error ?? "") }
         .task {
+            #if CAMERA_UI_PREVIEW
+            if CameraUIPreview.enabled {
+                store.loadUIPreview()
+                engine.loadUIPreview()
+                mode = CameraUIPreview.screen == "video" ? .video : .photo
+                controlsVisible = CameraUIPreview.screen == "controls"
+                selectedControl = controlsVisible ? .exposure : nil
+                galleryVisible = ["gallery", "editor", "crop"].contains(CameraUIPreview.screen)
+                setupDone = true
+                return
+            }
+            #endif
             engine.onPhoto = { data, ticket in store.receive(photo: data, ticket: ticket) }
             engine.onVideo = { url, ticket in store.receive(movie: url, ticket: ticket) }
             await store.prepareLibrary()
@@ -85,92 +112,147 @@ struct CameraScreen: View {
     }
 
     private var header: some View {
-        HStack {
+        ZStack {
+            HStack {
             Button {
                 flash = flash == .off ? .auto : flash == .auto ? .on : .off
             } label: {
-                Image(systemName: flash == .off ? "bolt.slash.fill" : flash == .auto ? "bolt.badge.a.fill" : "bolt.fill")
-                    .foregroundStyle(flash == .off ? .white : .yellow)
+                Image(systemName: flash == .off ? "bolt.slash" : "bolt.fill")
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundStyle(flash == .off ? .white : cameraYellow)
+                    .frame(width: 30, height: 30)
+                    .background(flash == .on ? cameraYellow.opacity(0.15) : .clear, in: Circle())
                     .frame(width: 44, height: 44)
             }.disabled(mode == .video || engine.isFront || engine.recording || countdown > 0)
                 .accessibilityLabel("闪光灯")
             Spacer()
             Button { guideVisible = true } label: {
-                Label(guidedAccess ? "已锁定" : "本次可见", systemImage: guidedAccess ? "lock.fill" : "shield.lefthalf.filled")
-                    .font(.caption).foregroundStyle(guidedAccess ? .green : .white)
+                Image(systemName: guidedAccess ? "lock.fill" : "lock.shield")
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundStyle(guidedAccess ? cameraYellow : .white)
+                    .frame(width: 44, height: 44)
             }.accessibilityLabel(guidedAccess ? "引导式访问已开启" : "相册已隔离，查看引导式访问")
-            Spacer()
-            Button { controlsVisible.toggle() } label: {
+            }
+            if !engine.recording {
+            Button { toggleControls() } label: {
                 Image(systemName: controlsVisible ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 30, height: 30)
+                    .background(Color(white: 0.13), in: Circle())
                     .frame(width: 44, height: 44)
             }.accessibilityLabel("拍摄选项")
-        }.padding(.horizontal, 14).padding(.top, 4)
+            } else if let started = recordingStarted {
+                TimelineView(.periodic(from: started, by: 1)) { context in
+                    let seconds = max(0, Int(context.date.timeIntervalSince(started)))
+                    Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
+                        .font(.system(size: 17, weight: .medium, design: .monospaced))
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 5))
+                }
+            }
+        }.padding(.horizontal, 18)
     }
 
     private var viewfinder: some View {
-        GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .bottom) {
+                #if CAMERA_UI_PREVIEW
+                if CameraUIPreview.enabled {
+                    Image(uiImage: CameraUIPreview.image).resizable().scaledToFill()
+                } else { CameraPreview(engine: engine) }
+                #else
                 CameraPreview(engine: engine)
+                #endif
                 if grid { CameraGrid().stroke(.white.opacity(0.4), lineWidth: 0.5).allowsHitTesting(false) }
                 if !engine.ready {
                     VStack(spacing: 12) {
-                        Image(systemName: "camera.fill").font(.largeTitle)
-                        Text("轻点重试启动相机").font(.caption)
-                        Button("重试") { engine.start() }
-                    }.padding(22).background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 16))
+                        Image(systemName: "camera").font(.system(size: 30, weight: .light))
+                        Button("轻点启动相机") { engine.start() }.font(.system(size: 14))
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 if countdown > 0 {
                     Text("\(countdown)").font(.system(size: 92, weight: .thin))
-                        .shadow(radius: 8).allowsHitTesting(false)
+                        .shadow(radius: 8).frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
                 }
-                VStack {
-                    if let started = recordingStarted {
-                        TimelineView(.periodic(from: started, by: 1)) { context in
-                            let seconds = max(0, Int(context.date.timeIntervalSince(started)))
-                            Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
-                                .monospacedDigit().padding(8).background(.red, in: Capsule())
-                        }.padding(.top, 12)
+                Color.white.opacity(shutterPulse ? 0.6 : 0).allowsHitTesting(false)
+                VStack(spacing: 8) {
+                    if timerSeconds > 0 && mode == .photo {
+                        Label("\(timerSeconds) 秒", systemImage: "timer")
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(cameraYellow)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(.black.opacity(0.45), in: Capsule())
                     }
-                    Spacer()
                     if !engine.isFront {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) {
                             ForEach(engine.lenses) { lens in
                                 Button { engine.selectLens(lens.id) } label: {
-                                    Text(lens.id == engine.selectedLens ? "\(lens.label)×" : lens.label)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(lens.id == engine.selectedLens ? .yellow : .white)
-                                        .frame(width: 40, height: 40)
-                                        .background(.black.opacity(0.6), in: Circle())
+                                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                                        Text(lens.id == engine.selectedLens ? selectedZoomLabel : lens.label)
+                                        if lens.id == engine.selectedLens { Text("×").font(.system(size: 10, weight: .semibold)) }
+                                    }
+                                    .font(.system(size: lens.id == engine.selectedLens ? 16 : 13, weight: .semibold))
+                                    .foregroundStyle(lens.id == engine.selectedLens ? cameraYellow : .white)
+                                    .frame(width: lens.id == engine.selectedLens ? 42 : 32,
+                                           height: lens.id == engine.selectedLens ? 42 : 32)
+                                    .background(.black.opacity(0.5), in: Circle())
+                                    .frame(width: 42, height: 44)
                                 }.disabled(engine.recording || engine.capturing || countdown > 0)
+                                    .accessibilityLabel("\(lens.label) 倍镜头")
                             }
-                        }.padding(.bottom, 14)
+                        }
                     }
-                }
+                }.padding(.bottom, mode == .photo ? 16 : 92)
             }
             .clipped()
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }.aspectRatio(mode == .photo ? 3.0 / 4 : 9.0 / 16, contentMode: .fit)
-            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .simultaneousGesture(DragGesture(minimumDistance: 32).onEnded { gesture in
+                guard !engine.recording, !engine.capturing, countdown == 0 else { return }
+                if abs(gesture.translation.width) > abs(gesture.translation.height) {
+                    changeMode(gesture.translation.width < 0 ? .photo : .video)
+                } else if gesture.translation.height < -35 {
+                    withAnimation(.easeInOut(duration: 0.2)) { controlsVisible = true }
+                } else if gesture.translation.height > 35 {
+                    withAnimation(.easeInOut(duration: 0.2)) { controlsVisible = false; selectedControl = nil }
+                }
+            })
     }
 
     private var additionalControls: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Button { grid.toggle() } label: {
-                    Label("网格", systemImage: "grid").foregroundStyle(grid ? .yellow : .white)
-                }
-                Spacer()
-                Button { timerSeconds = timerSeconds == 0 ? 3 : timerSeconds == 3 ? 10 : 0 } label: {
-                    Label(timerSeconds == 0 ? "定时关闭" : "\(timerSeconds) 秒", systemImage: "timer")
-                        .foregroundStyle(timerSeconds > 0 ? .yellow : .white)
-                }.disabled(mode == .video || countdown > 0)
-                Spacer()
-                Text(String(format: "%.1f×", engine.zoom)).monospacedDigit()
-            }.font(.caption)
-            HStack {
-                Image(systemName: "sun.max")
-                Slider(value: $exposure, in: -2...2).tint(.yellow)
-                Text(String(format: "%+.1f", exposure)).font(.caption).monospacedDigit()
+        VStack(spacing: 0) {
+            if let selectedControl {
+                HStack(spacing: 18) {
+                    Button { withAnimation { self.selectedControl = nil } } label: {
+                        Image(systemName: "chevron.left").font(.system(size: 17, weight: .medium))
+                            .frame(width: 36, height: 44)
+                    }.accessibilityLabel("返回拍摄选项")
+                    switch selectedControl {
+                    case .flash:
+                        optionButton("自动", selected: flash == .auto) { flash = .auto }
+                        optionButton("打开", selected: flash == .on) { flash = .on }
+                        optionButton("关闭", selected: flash == .off) { flash = .off }
+                    case .timer:
+                        optionButton("关闭", selected: timerSeconds == 0) { timerSeconds = 0 }
+                        optionButton("3 秒", selected: timerSeconds == 3) { timerSeconds = 3 }
+                        optionButton("10 秒", selected: timerSeconds == 10) { timerSeconds = 10 }
+                    case .exposure:
+                        Text(String(format: "%+.1f", exposure)).font(.system(size: 12)).monospacedDigit()
+                            .foregroundStyle(cameraYellow).frame(width: 36)
+                        AdjustmentRuler(value: $exposure, range: -2...2, step: 0.1, defaultValue: 0)
+                            .frame(height: 42)
+                    }
+                    Spacer(minLength: 0)
+                }.padding(.horizontal, 16).frame(height: 50)
+            } else {
+                HStack {
+                    captureControl("bolt", active: flash != .off, label: "闪光灯") { selectedControl = .flash }
+                        .disabled(mode == .video || engine.isFront)
+                    Spacer()
+                    captureControl("plusminus.circle", active: exposure != 0, label: "曝光") { selectedControl = .exposure }
+                    Spacer()
+                    captureControl("timer", active: timerSeconds != 0, label: "定时") { selectedControl = .timer }
+                        .disabled(mode == .video)
+                    Spacer()
+                    captureControl("grid", active: grid, label: "网格") { grid.toggle() }
+                }.padding(.horizontal, 30).frame(height: 50)
             }
             if !store.photosAllowed {
                 Button("照片权限未开启 · 前往设置") { openAppSettings() }
@@ -180,56 +262,102 @@ struct CameraScreen: View {
                 Button("\(store.pendingRecoveryCount) 项待保存 · 重试") { Task { await store.retryPending() } }
                     .font(.caption).foregroundStyle(.orange)
             }
-        }.padding(.horizontal, 24).padding(.vertical, 10)
+        }.padding(.bottom, 2).background(.black.opacity(0.9))
+            .disabled(engine.recording || engine.capturing || countdown > 0)
     }
 
     private var modeSelector: some View {
-        HStack(spacing: 30) {
-            Button("视频") { mode = .video; engine.setMode(.video) }
-                .foregroundStyle(mode == .video ? .yellow : .white)
-            Button("照片") { mode = .photo; engine.setMode(.photo) }
-                .foregroundStyle(mode == .photo ? .yellow : .white)
-        }.font(.system(size: 14, weight: .semibold)).padding(.vertical, 16)
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                Button("视频") { changeMode(.video) }.frame(width: 66, height: 48)
+                    .foregroundStyle(mode == .video ? cameraYellow : .white)
+                Button("照片") { changeMode(.photo) }.frame(width: 66, height: 48)
+                    .foregroundStyle(mode == .photo ? cameraYellow : .white)
+            }
+            .font(.system(size: 13, weight: .semibold))
+            .offset(x: geometry.size.width / 2 - (mode == .photo ? 99 : 33))
+        }.frame(height: 48).clipped().background(.black.opacity(mode == .photo ? 1 : 0.55))
             .disabled(engine.recording || engine.capturing || countdown > 0 || !engine.ready)
     }
 
     private var shutterRow: some View {
-        HStack {
+        ZStack {
+            HStack {
             Button { galleryVisible = true } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.1))
                     if let thumbnail = store.captures.last?.thumbnail {
                         Image(uiImage: thumbnail).resizable().scaledToFill()
-                    } else { Image(systemName: "photo").foregroundStyle(.gray) }
-                }.frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else { Image(systemName: "photo").font(.system(size: 18)).foregroundStyle(.gray) }
+                }.frame(width: 50, height: 50).clipShape(RoundedRectangle(cornerRadius: 5))
             }.accessibilityLabel("查看本次拍摄的照片").disabled(engine.recording || countdown > 0)
             Spacer()
+            Button { engine.switchCamera() } label: {
+                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                    .font(.system(size: 24, weight: .regular)).frame(width: 50, height: 50)
+                    .background(Color(white: 0.15).opacity(0.85), in: Circle())
+            }.disabled(engine.recording || engine.capturing || countdown > 0)
+                .accessibilityLabel("切换前后摄像头")
+            }.padding(.horizontal, 29)
             Button(action: shutter) {
                 ZStack {
-                    Circle().stroke(.white, lineWidth: 4).frame(width: 78, height: 78)
+                    Circle().stroke(.white, lineWidth: 4).frame(width: 76, height: 76)
                     if engine.recording {
-                        RoundedRectangle(cornerRadius: 5).fill(.red).frame(width: 30, height: 30)
+                        RoundedRectangle(cornerRadius: 6).fill(.red).frame(width: 32, height: 32)
                     } else {
                         Circle().fill(mode == .photo ? .white : .red).frame(width: 64, height: 64)
                     }
                 }
+                .scaleEffect(engine.capturing ? 0.94 : 1)
+                .animation(.easeOut(duration: 0.12), value: engine.capturing)
             }.disabled(!engine.ready || engine.capturing || countdown > 0)
                 .accessibilityLabel(mode == .photo ? "拍照" : engine.recording ? "停止录像" : "开始录像")
-            Spacer()
-            Button { engine.switchCamera() } label: {
-                Image(systemName: "arrow.triangle.2.circlepath.camera")
-                    .font(.system(size: 25)).frame(width: 48, height: 48)
-                    .background(.white.opacity(0.12), in: Circle())
-            }.disabled(engine.recording || engine.capturing || countdown > 0)
-                .accessibilityLabel("切换前后摄像头")
-        }.padding(.horizontal, 32).padding(.bottom, 18)
+        }.background(.black.opacity(mode == .photo ? 1 : 0.55))
+    }
+
+    private var selectedZoomLabel: String {
+        let optical = Double(engine.lenses.first { $0.id == engine.selectedLens }?.label ?? "1") ?? 1
+        let value = optical * Double(engine.zoom)
+        return abs(value.rounded() - value) < 0.05 ? String(Int(value.rounded())) : String(format: "%.1f", value)
+    }
+
+    private func changeMode(_ newMode: CameraMode) {
+        guard mode != newMode, !engine.recording, !engine.capturing, countdown == 0 else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        withAnimation(.easeInOut(duration: 0.22)) {
+            mode = newMode
+            controlsVisible = false
+            selectedControl = nil
+        }
+        engine.setMode(newMode)
+    }
+
+    private func toggleControls() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            controlsVisible.toggle()
+            selectedControl = nil
+        }
+    }
+
+    private func captureControl(_ symbol: String, active: Bool, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 20, weight: .regular))
+                .foregroundStyle(active ? .black : .white).frame(width: 36, height: 36)
+                .background(active ? cameraYellow : Color(white: 0.18), in: Circle())
+                .frame(width: 44, height: 48)
+        }.accessibilityLabel(label).accessibilityValue(active ? "开启" : "关闭")
+    }
+
+    private func optionButton(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(title, action: action).font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(selected ? cameraYellow : .white).frame(minWidth: 46, minHeight: 44)
     }
 
     private func shutter() {
         let ticket = store.issueTicket()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         if mode == .video { engine.toggleVideo(ticket: ticket); return }
-        if timerSeconds == 0 { engine.takePhoto(ticket: ticket, flash: flash); return }
+        if timerSeconds == 0 { capturePhoto(ticket); return }
         countdownTask = Task {
             for second in stride(from: timerSeconds, through: 1, by: -1) {
                 guard !Task.isCancelled, active else { countdown = 0; return }
@@ -239,12 +367,105 @@ struct CameraScreen: View {
             }
             countdown = 0
             guard !Task.isCancelled, active else { return }
-            engine.takePhoto(ticket: ticket, flash: flash)
+            capturePhoto(ticket)
         }
+    }
+
+    private func capturePhoto(_ ticket: CaptureTicket) {
+        engine.takePhoto(ticket: ticket, flash: flash)
+        shutterPulse = true
+        withAnimation(.easeOut(duration: 0.18)) { shutterPulse = false }
     }
 
     private func openAppSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+    }
+}
+
+private enum CaptureControl { case flash, timer, exposure }
+let cameraYellow = Color(red: 1, green: 0.83, blue: 0.04)
+
+/// Keep the photo preview at 3:4 and the selected mode on the shutter's axis.
+/// Compact phones fit the same aspect ratio between the safe header and dock.
+struct CameraLayout {
+    let previewWidth: CGFloat
+    let previewHeight: CGFloat
+    let previewTop: CGFloat
+    let topInset: CGFloat
+    let bottomInset: CGFloat
+    let bottomSpacing: CGFloat
+    let shutterHeight: CGFloat
+
+    init(size: CGSize, insets: EdgeInsets, video: Bool) {
+        let windowInsets = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).first { $0.isKeyWindow }?.safeAreaInsets ?? .zero
+        topInset = max(insets.top, windowInsets.top)
+        bottomInset = max(insets.bottom, windowInsets.bottom)
+        shutterHeight = size.height < 700 ? 84 : 98
+        bottomSpacing = size.height < 700 ? 4 : 18
+        let dock = 48 + shutterHeight + bottomInset + bottomSpacing
+        if video {
+            previewWidth = size.width
+            previewHeight = size.height - topInset - 44 - bottomInset
+            previewTop = topInset + 44
+        } else {
+            let available = max(1, size.height - topInset - 44 - dock)
+            previewHeight = min(size.width * 4 / 3, available)
+            previewWidth = min(size.width, previewHeight * 3 / 4)
+            previewTop = topInset + 44 + max(0, (available - previewHeight) / 2)
+        }
+    }
+}
+
+/// A centered tick dial, shared by exposure compensation and the photo editor.
+/// Moving the scale left increases the value, as in the system editor.
+struct AdjustmentRuler: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let defaultValue: Double
+    @State private var dragStart: Double?
+
+    var body: some View {
+        GeometryReader { geometry in
+            let spacing = 7.0
+            Canvas { context, size in
+                let count = Int(((range.upperBound - range.lowerBound) / step).rounded())
+                for index in 0...count {
+                    let tick = range.lowerBound + Double(index) * step
+                    let x = size.width / 2 + (tick - value) / step * spacing
+                    guard x >= 0, x <= size.width else { continue }
+                    let major = index % 5 == 0
+                    let isDefault = abs(tick - defaultValue) < step / 2
+                    let height: CGFloat = major ? 18 : 10
+                    var path = Path()
+                    path.move(to: CGPoint(x: x, y: (size.height - height) / 2))
+                    path.addLine(to: CGPoint(x: x, y: (size.height + height) / 2))
+                    context.stroke(path, with: .color(isDefault ? .white : .gray.opacity(major ? 0.8 : 0.5)), lineWidth: 1)
+                }
+                var indicator = Path()
+                indicator.move(to: CGPoint(x: size.width / 2, y: 5))
+                indicator.addLine(to: CGPoint(x: size.width / 2, y: size.height - 5))
+                context.stroke(indicator, with: .color(cameraYellow), lineWidth: 2)
+            }
+            .mask(LinearGradient(colors: [.clear, .black, .black, .clear], startPoint: .leading, endPoint: .trailing))
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { gesture in
+                    if dragStart == nil { dragStart = value }
+                    value = min(range.upperBound, max(range.lowerBound,
+                        (dragStart ?? value) - Double(gesture.translation.width) / spacing * step))
+                }
+                .onEnded { _ in dragStart = nil })
+            .onTapGesture(count: 2) { value = defaultValue }
+            .accessibilityElement()
+            .accessibilityLabel("调整数值")
+            .accessibilityValue(String(format: "%.1f", value))
+            .accessibilityAdjustableAction { direction in
+                value = min(range.upperBound, max(range.lowerBound, value + (direction == .increment ? step : -step)))
+            }
+            .frame(width: geometry.size.width)
+        }
     }
 }
 
@@ -380,72 +601,162 @@ struct SessionGallery: View {
     @State private var selected: UUID?
     @State private var editing: SessionCapture?
     @State private var confirmHide = false
+    @State private var chromeVisible = true
+    @State private var infoVisible = false
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if store.captures.isEmpty {
-                    ContentUnavailableView("本次还没有照片", systemImage: "camera",
-                                           description: Text("拍下的照片会显示在这里，并自动保存到系统照片。"))
-                } else {
-                    VStack(spacing: 10) {
-                        TabView(selection: $selected) {
-                            ForEach(store.captures) { item in
-                                SessionMediaView(capture: item, isSelected: item.id == selected).tag(Optional(item.id))
-                            }
-                        }.tabViewStyle(.page(indexDisplayMode: .never))
-                        if let item = current {
-                            saveStatus(item)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 5) {
-                                    ForEach(store.captures) { item in
-                                        Button { selected = item.id } label: {
-                                            if let image = item.thumbnail {
-                                                Image(uiImage: image).resizable().scaledToFill()
-                                                    .frame(width: 40, height: 48).clipped()
-                                                    .overlay(Rectangle().stroke(item.id == selected ? .yellow : .clear, lineWidth: 2))
-                                            }
-                                        }
-                                    }
-                                }.padding(.horizontal)
-                            }.frame(height: 52)
-                            HStack {
-                                Button { confirmHide = true } label: {
-                                    Label("移出本次", systemImage: "eye.slash")
-                                }
-                                Spacer()
-                                if item.kind == .photo {
-                                    Button("编辑") { editing = item }.disabled(item.assetID == nil)
-                                }
-                            }.padding()
-                        }
-                    }
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if store.captures.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "photo.on.rectangle").font(.system(size: 40, weight: .ultraLight))
+                        .foregroundStyle(.gray)
+                    Text("本次还没有照片").font(.system(size: 19, weight: .semibold))
+                    Text("拍摄后可在这里查看").font(.system(size: 14)).foregroundStyle(.gray)
                 }
-            }.background(.black)
-                .navigationTitle("本次拍摄 · \(store.captures.count) 项")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("相机") { dismiss() } } }
-                .onAppear { selected = store.captures.last?.id }
-                .onChange(of: store.sessionID) { _ in dismiss() }
-                .sheet(item: $editing) { item in PhotoEditorView(store: store, capture: item) }
-                .confirmationDialog("仅从本次预览移除，系统照片仍然保留", isPresented: $confirmHide) {
-                    Button("移出本次预览", role: .destructive) {
-                        if let item = current { store.hide(item) }
-                        selected = store.captures.last?.id
+            } else {
+                TabView(selection: $selected) {
+                    ForEach(store.captures) { item in
+                        SessionMediaView(capture: item, isSelected: item.id == selected,
+                                         onTap: { withAnimation(.easeInOut(duration: 0.18)) { chromeVisible.toggle() } })
+                            .tag(Optional(item.id))
                     }
+                }.tabViewStyle(.page(indexDisplayMode: .never))
+            }
+            VStack(spacing: 0) {
+                header.frame(height: 54)
+                Spacer(minLength: 0)
+                if let item = current {
+                    saveStatus(item)
+                    filmstrip.padding(.bottom, 12)
+                    bottomBar(item).frame(height: 50)
                 }
-        }.preferredColorScheme(.dark)
+            }
+            .opacity(chromeVisible ? 1 : 0)
+            .allowsHitTesting(chromeVisible)
+        }
+        .background(.black).foregroundStyle(.white).preferredColorScheme(.dark).statusBarHidden()
+        .buttonStyle(.plain)
+        .onAppear {
+            selected = store.captures.last?.id
+            #if CAMERA_UI_PREVIEW
+            if ["editor", "crop"].contains(CameraUIPreview.screen) {
+                editing = store.captures.last
+            }
+            #endif
+        }
+        .onChange(of: store.sessionID) { _ in dismiss() }
+        .fullScreenCover(item: $editing) { item in PhotoEditorView(store: store, capture: item) }
+        .sheet(isPresented: $infoVisible) {
+            VStack(spacing: 20) {
+                Image(systemName: "lock.shield").font(.system(size: 32, weight: .light))
+                Text("本次拍摄").font(.title3.weight(.semibold))
+                Text("这里只显示这次打开借拍后拍摄的照片和视频。\n照片及修改自动保存到系统「照片」。")
+                    .font(.system(size: 15)).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                if let item = current {
+                    Text(item.capturedAt.formatted(date: .abbreviated, time: .standard))
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }.padding(30).presentationDetents([.height(285)]).presentationDragIndicator(.visible)
+                .preferredColorScheme(.dark)
+        }
+        .confirmationDialog("从本次预览移除？系统照片仍会保留。", isPresented: $confirmHide, titleVisibility: .visible) {
+            Button("移出本次预览", role: .destructive) {
+                if let item = current { store.hide(item) }
+                selected = store.captures.last?.id
+            }
+        }
     }
 
     private var current: SessionCapture? { selected.flatMap { store.capture($0) } }
 
+    private var header: some View {
+        ZStack {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left").font(.system(size: 22, weight: .medium))
+                        .frame(width: 44, height: 44)
+                }.accessibilityLabel("返回相机")
+                Spacer()
+                Menu {
+                    Button("本次拍摄说明", systemImage: "lock.shield") { infoVisible = true }
+                    if current != nil {
+                        Button("移出本次预览", systemImage: "eye.slash", role: .destructive) { confirmHide = true }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle").font(.system(size: 23, weight: .regular))
+                        .frame(width: 44, height: 44)
+                }.accessibilityLabel("照片选项")
+            }.foregroundStyle(Color(red: 0.2, green: 0.58, blue: 1))
+            if let item = current {
+                VStack(spacing: 3) {
+                    Text(Calendar.current.isDateInToday(item.capturedAt) ? "今天" :
+                        item.capturedAt.formatted(.dateTime.month().day()))
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(item.capturedAt.formatted(.dateTime.hour().minute()))
+                        .font(.system(size: 11)).foregroundStyle(.gray)
+                }.allowsHitTesting(false)
+            }
+        }.padding(.horizontal, 8)
+    }
+
+    private var filmstrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(store.captures) { item in
+                        Button { selected = item.id } label: {
+                            ZStack(alignment: .bottomTrailing) {
+                                if let image = item.thumbnail {
+                                    Image(uiImage: image).resizable().scaledToFill()
+                                } else { Color(white: 0.15) }
+                                if item.kind == .video {
+                                    Image(systemName: "video.fill").font(.system(size: 8))
+                                        .padding(2).shadow(radius: 2)
+                                }
+                            }
+                            .frame(width: item.id == selected ? 34 : 22, height: item.id == selected ? 44 : 38)
+                            .clipped().padding(.horizontal, item.id == selected ? 4 : 0)
+                        }.id(item.id).accessibilityLabel("本次第 \((store.captures.firstIndex { $0.id == item.id } ?? 0) + 1) 项")
+                    }
+                }
+                .padding(.horizontal, 20).frame(minWidth: UIScreen.main.bounds.width, minHeight: 48)
+            }
+            .onChange(of: selected) { id in
+                if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .center) } }
+            }
+        }.frame(height: 48)
+    }
+
+    private func bottomBar(_ item: SessionCapture) -> some View {
+        HStack {
+            Button { confirmHide = true } label: {
+                Image(systemName: "eye.slash").font(.system(size: 21)).frame(width: 44, height: 44)
+            }.accessibilityLabel("移出本次预览，保留系统照片")
+            Spacer()
+            Button { infoVisible = true } label: {
+                Image(systemName: "info.circle").font(.system(size: 22)).frame(width: 44, height: 44)
+            }.accessibilityLabel("本次照片信息")
+            Spacer()
+            if item.kind == .photo {
+                Button { editing = item } label: {
+                    Image(systemName: "slider.horizontal.3").font(.system(size: 23)).frame(width: 44, height: 44)
+                }.disabled(item.assetID == nil).accessibilityLabel("编辑照片")
+            } else { Color.clear.frame(width: 44, height: 44) }
+        }.foregroundStyle(Color(red: 0.2, green: 0.58, blue: 1)).padding(.horizontal, 20)
+    }
+
     @ViewBuilder private func saveStatus(_ item: SessionCapture) -> some View {
         switch item.saveState {
-        case .saving: Label("正在保存到照片…", systemImage: "arrow.triangle.2.circlepath").font(.caption)
-        case .saved: Label("已保存到照片", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+        case .saving:
+            HStack(spacing: 6) {
+                ProgressView().scaleEffect(0.65)
+                Text("正在保存").font(.system(size: 11)).foregroundStyle(.gray)
+            }.padding(.bottom, 10)
+        case .saved: EmptyView()
         case .failed:
             Button("尚未保存 · 轻点重试") { Task { await store.retryPending() } }
-                .font(.caption).foregroundStyle(.orange)
+                .font(.system(size: 12)).foregroundStyle(.orange).padding(.bottom, 10)
         }
     }
 }
@@ -453,6 +764,7 @@ struct SessionGallery: View {
 struct SessionMediaView: View {
     let capture: SessionCapture
     let isSelected: Bool
+    var onTap: () -> Void = {}
     @State private var player: AVPlayer?
     @State private var image: UIImage?
 
@@ -462,7 +774,7 @@ struct SessionMediaView: View {
                 if let player { VideoPlayer(player: player) }
                 else { ProgressView() }
             } else if let image = image ?? capture.thumbnail {
-                ZoomablePhoto(image: image)
+                ZoomablePhoto(image: image, onTap: onTap)
             } else { ProgressView() }
         }
         .task(id: capture.displayURL.absoluteString + (isSelected ? "selected" : "preview")) {
@@ -486,6 +798,7 @@ struct SessionMediaView: View {
 
 final class PhotoScrollSurface: UIScrollView, UIScrollViewDelegate {
     let photoView = UIImageView()
+    var onSingleTap: (() -> Void)?
     private var fittedSize = CGSize.zero
 
     override init(frame: CGRect) {
@@ -501,6 +814,9 @@ final class PhotoScrollSurface: UIScrollView, UIScrollViewDelegate {
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(toggleZoom(_:)))
         doubleTap.numberOfTapsRequired = 2
         addGestureRecognizer(doubleTap)
+        let singleTap = UITapGestureRecognizer(target: self, action: #selector(toggleChrome))
+        singleTap.require(toFail: doubleTap)
+        addGestureRecognizer(singleTap)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
@@ -531,6 +847,7 @@ final class PhotoScrollSurface: UIScrollView, UIScrollViewDelegate {
                                    y: max(contentSize.height, bounds.height) / 2)
     }
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { photoView }
+    @objc private func toggleChrome() { onSingleTap?() }
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         panGestureRecognizer.isEnabled = zoomScale > 1.01
         centerPhoto()
@@ -548,6 +865,10 @@ final class PhotoScrollSurface: UIScrollView, UIScrollViewDelegate {
 
 struct ZoomablePhoto: UIViewRepresentable {
     let image: UIImage
+    var onTap: () -> Void = {}
     func makeUIView(context: Context) -> PhotoScrollSurface { PhotoScrollSurface() }
-    func updateUIView(_ view: PhotoScrollSurface, context: Context) { view.setImage(image) }
+    func updateUIView(_ view: PhotoScrollSurface, context: Context) {
+        view.setImage(image)
+        view.onSingleTap = onTap
+    }
 }
