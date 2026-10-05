@@ -64,7 +64,7 @@ struct CameraWidgetConfiguration: WidgetConfigurationIntent {
     static var isDiscoverable: Bool = false
 
     @Parameter(title: "样式", default: .preset) var style: CameraWidgetStyle
-    @Parameter(title: "点击行为", default: .none) var tapBehavior: WidgetTapBehavior
+    @Parameter(title: "点击行为", default: WidgetTapBehavior.none) var tapBehavior: WidgetTapBehavior
     @Parameter(title: "相册或文件夹") var source: PhotoSourceEntity?
     @Parameter(title: "更换间隔（分钟，5～10080）", default: 60) var intervalMinutes: Int
     @Parameter(title: "独立编号") var identity: WidgetIdentityEntity?

@@ -106,7 +106,9 @@ enum PhotoLibrarySource {
     }
 }
 
-private final class PhotoImageRequest {
+// Every mutable field is protected by lock; timeout and PhotoKit callbacks
+// may arrive on different queues.
+private final class PhotoImageRequest: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Data?, Never>?
     private var identifier: PHImageRequestID?
