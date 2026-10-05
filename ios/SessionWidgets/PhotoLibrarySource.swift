@@ -1,6 +1,7 @@
 import Foundation
 import Photos
 import UIKit
+import CryptoKit
 
 enum PhotoLibrarySource {
     static var status: PHAuthorizationStatus { PHPhotoLibrary.authorizationStatus(for: .readWrite) }
@@ -93,37 +94,78 @@ enum PhotoLibrarySource {
         return result
     }
 
-    static func imageData(assetID: String, size: CGSize) async -> Data? {
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject else { return nil }
-        return await withCheckedContinuation { continuation in
-            let request = PhotoImageRequest(continuation)
+    static func imageData(assetID: String, size: CGSize, timeout: TimeInterval = 8) async -> Data? {
+        // Recheck access and the asset before consulting the extension's cache.
+        // Cached bytes must never bypass a removed asset or revoked permission.
+        guard status == .authorized || status == .limited,
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject else { return nil }
+        let target = pixelSize(for: size)
+        let cacheKey = PhotoImageCache.key(asset: asset, target: target)
+        if let cached = PhotoImageCache.read(key: cacheKey, target: target) { return cached }
+        let data: Data? = await withCheckedContinuation { continuation in
+            let request = PhotoImageRequest(continuation, target: target)
             let options = PHImageRequestOptions()
-            options.deliveryMode = .opportunistic
-            options.resizeMode = .fast
+            options.deliveryMode = .highQualityFormat
+            options.resizeMode = .exact
             options.isNetworkAccessAllowed = true
-            let scale = min(2, 720 / max(max(size.width, size.height), 1))
-            let target = CGSize(width: max(1, size.width * scale), height: max(1, size.height * scale))
             let identifier = PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: options) { image, info in
-                if let image {
-                    let data = autoreleasepool { image.jpegData(compressionQuality: 0.86) }
-                    request.finish(data)
-                } else if info?[PHImageCancelledKey] as? Bool == true || info?[PHImageErrorKey] != nil {
-                    request.finish(nil)
-                }
+                request.receive(image, info: info)
             }
             request.setIdentifier(identifier)
-            DispatchQueue.global().asyncAfter(deadline: .now() + 4) { request.finish(nil) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + max(0.1, timeout)) { request.finish(nil) }
         }
+        if let data { PhotoImageCache.write(data, key: cacheKey) }
+        return data
+    }
+
+    static func pixelSize(for size: CGSize) -> CGSize {
+        // iPhones use up to three physical pixels per point. Bound the longest
+        // edge and encode a cropped image to keep decoded widget memory small.
+        let width = size.width.isFinite && size.width > 1 ? size.width : 180
+        let height = size.height.isFinite && size.height > 1 ? size.height : 180
+        let scale = min(3, 1200 / max(width, height))
+        return CGSize(width: max(1, (width * scale).rounded()), height: max(1, (height * scale).rounded()))
     }
 }
 
 // Every mutable field is protected by lock; timeout and PhotoKit callbacks
 // may arrive on different queues.
-private final class PhotoImageRequest: @unchecked Sendable {
+final class PhotoImageRequest: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Data?, Never>?
     private var identifier: PHImageRequestID?
-    init(_ continuation: CheckedContinuation<Data?, Never>) { self.continuation = continuation }
+    private let target: CGSize
+    init(_ continuation: CheckedContinuation<Data?, Never>, target: CGSize) {
+        self.continuation = continuation
+        self.target = target
+    }
+    func receive(_ image: UIImage?, info: [AnyHashable: Any]?) {
+        if info?[PHImageCancelledKey] as? Bool == true || info?[PHImageErrorKey] != nil {
+            finish(nil)
+            return
+        }
+        // A degraded callback is provisional, even if it contains a UIImage.
+        // Finishing here used to cancel the subsequent high-quality delivery.
+        guard info?[PHImageResultIsDegradedKey] as? Bool != true else { return }
+        guard let image else { finish(nil); return }
+        lock.lock()
+        let completed = continuation == nil
+        lock.unlock()
+        guard !completed else { return }
+        let data = autoreleasepool {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = true
+            let scale = max(target.width / image.size.width, target.height / image.size.height)
+            let rect = CGRect(x: (target.width - image.size.width * scale) / 2,
+                              y: (target.height - image.size.height * scale) / 2,
+                              width: image.size.width * scale, height: image.size.height * scale)
+            return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+                image.draw(in: rect)
+            }.jpegData(compressionQuality: 0.92)
+        }
+        finish(data)
+    }
     func setIdentifier(_ value: PHImageRequestID) {
         lock.lock()
         let completed = continuation == nil
@@ -139,5 +181,45 @@ private final class PhotoImageRequest: @unchecked Sendable {
         guard let pending else { return }
         if let identifier { PHImageManager.default().cancelImageRequest(identifier) }
         pending.resume(returning: data)
+    }
+}
+
+// Only final-quality, cropped JPEGs are cached in the extension container.
+// Removing/re-adding a widget can reuse them without an App Group. The key
+// includes edit time and size, so a changed photo or widget size is reloaded.
+enum PhotoImageCache {
+    private static var directory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("WidgetPhotosHQ-v1", isDirectory: true)
+    }
+    static func key(asset: PHAsset, target: CGSize) -> String {
+        let value = "\(asset.localIdentifier)|\(asset.modificationDate?.timeIntervalSince1970 ?? 0)|\(Int(target.width))x\(Int(target.height))"
+        return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    static func read(key: String, target: CGSize) -> Data? {
+        let url = directory.appendingPathComponent(key + ".jpg")
+        guard let data = try? Data(contentsOf: url), let image = UIImage(data: data),
+              let pixels = image.cgImage, pixels.width == Int(target.width), pixels.height == Int(target.height) else { return nil }
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
+        return data
+    }
+    static func write(_ data: Data, key: String) {
+        let manager = FileManager.default
+        do {
+            try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: directory.appendingPathComponent(key + ".jpg"), options: [.atomic, .completeUntilFirstUserAuthentication])
+            let files = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey])
+            let records = files.compactMap { url -> (URL, Date, Int)? in
+                guard let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]) else { return nil }
+                return (url, values.contentModificationDate ?? .distantPast, values.fileSize ?? 0)
+            }.sorted { $0.1 > $1.1 }
+            var bytes = 0
+            for (index, record) in records.enumerated() {
+                bytes += record.2
+                if index >= 32 || bytes > 24 * 1024 * 1024 { try? manager.removeItem(at: record.0) }
+            }
+        } catch {
+            // A full/unavailable cache must not prevent a fresh photo display.
+        }
     }
 }

@@ -26,7 +26,13 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         configuration.style == .preset ? preset : configuration.style
     }
     func timeline(for configuration: CameraWidgetConfiguration, in context: Context) async -> Timeline<CameraWidgetEntry> {
-        let now = Date(), style = resolved(configuration)
+        await makeTimeline(for: configuration, size: context.displaySize)
+    }
+    func makeTimeline(for configuration: CameraWidgetConfiguration, size: CGSize, now: Date = Date(),
+                      loadImage: (String, CGSize, TimeInterval) async -> Data? = {
+                          await PhotoLibrarySource.imageData(assetID: $0, size: $1, timeout: $2)
+                      }) async -> Timeline<CameraWidgetEntry> {
+        let style = resolved(configuration)
         func entry(_ message: String) -> CameraWidgetEntry {
             CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior, message: message)
         }
@@ -58,10 +64,21 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         let deadline = Date().addingTimeInterval(16)
         for pick in picks {
             if data[pick.assetID] == nil && Date() < deadline {
-                data[pick.assetID] = await PhotoLibrarySource.imageData(assetID: pick.assetID, size: context.displaySize)
+                let requestTimeout: TimeInterval = entries.isEmpty ? 8 : 2
+                data[pick.assetID] = await loadImage(pick.assetID, size, min(requestTimeout, max(0.1, deadline.timeIntervalSinceNow)))
+            }
+            guard let imageData = data[pick.assetID] else {
+                // Never enqueue missing future images: that would replace a
+                // good photo with an error and delay retry for up to six periods.
+                if entries.isEmpty {
+                    return Timeline(entries: [entry("照片正在加载，请保持联网；稍后会自动重试")],
+                                    policy: .after(now.addingTimeInterval(300)))
+                }
+                let retry = max(now.addingTimeInterval(300), pick.date.addingTimeInterval(-60))
+                return Timeline(entries: entries, policy: .after(retry))
             }
             entries.append(CameraWidgetEntry(date: pick.date, style: .photos, tapBehavior: configuration.tapBehavior,
-                imageData: data[pick.assetID], message: "照片暂不可用，请联网后刷新小组件"))
+                imageData: imageData))
         }
         return Timeline(entries: entries, policy: .atEnd)
     }

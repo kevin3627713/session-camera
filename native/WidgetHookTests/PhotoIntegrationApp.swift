@@ -1,6 +1,7 @@
 import SwiftUI
 import Photos
 import AppIntents
+import WidgetKit
 
 // Independent simulator host. It is never compiled into the camera/extension.
 @main
@@ -24,12 +25,23 @@ struct PhotoIntegrationApp: App {
             // PhotoKit initializes its read/write authorization state here.
             _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
             try require(PhotoLibrarySource.status == .authorized, "Full Photos authorization")
-            func image(_ color: UIColor) -> UIImage {
-                UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64)).image { context in
-                    color.setFill(); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+            func image(_ color: UIColor, pixels: CGFloat = 64) -> UIImage {
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1
+                return UIGraphicsImageRenderer(size: CGSize(width: pixels, height: pixels), format: format).image { context in
+                    color.setFill(); context.fill(CGRect(x: 0, y: 0, width: pixels, height: pixels))
+                    if pixels > 64 {
+                        // Fine detail distinguishes a full-quality request from
+                        // PhotoKit's tiny provisional thumbnail, even if upscaled.
+                        UIColor.white.setFill()
+                        for x in stride(from: 0, to: Int(pixels), by: 12) {
+                            context.fill(CGRect(x: x, y: 0, width: 6, height: Int(pixels / 3)))
+                        }
+                    }
                 }
             }
-            let red = image(.red), blue = image(.blue), green = image(.green), yellow = image(.yellow)
+            let red = image(.red, pixels: 1800), blue = image(.blue, pixels: 1800)
+            let green = image(.green), yellow = image(.yellow)
             var redID = "", blueID = "", hiddenID = "", outsideID = "", albumID = "", folderID = ""
             try await PHPhotoLibrary.shared().performChanges {
                 let a = PHAssetChangeRequest.creationRequestForAsset(from: red).placeholderForCreatedAsset!
@@ -72,6 +84,97 @@ struct PhotoIntegrationApp: App {
             try require(picks.count == 6 && picks.allSatisfy { folder.contains($0.assetID) }, "Scheduled photos stay inside selected folder")
             let data = await PhotoLibrarySource.imageData(assetID: picks[0].assetID, size: CGSize(width: 160, height: 160))
             try require(data.flatMap(UIImage.init(data:)) != nil, "Actual PhotoKit image request produces displayable data")
+            let pixels = data.flatMap(UIImage.init(data:))?.cgImage
+            try require(pixels?.width == 480 && pixels?.height == 480, "Small widget receives three-times point resolution")
+            var detailContrast = 0
+            if let pixels {
+                for row in [80, 400] {
+                    var line = [UInt8](repeating: 0, count: 480 * 4)
+                    line.withUnsafeMutableBytes { bytes in
+                        let context = CGContext(data: bytes.baseAddress, width: 480, height: 1, bitsPerComponent: 8,
+                                                bytesPerRow: 480 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                        context.draw(pixels, in: CGRect(x: 0, y: -row, width: 480, height: 480))
+                    }
+                    let green = stride(from: 1, to: line.count, by: 4).map { Int(line[$0]) }
+                    detailContrast = max(detailContrast, green.max()! - green.min()!)
+                }
+            }
+            try require(detailContrast > 160, "Real PhotoKit result retains fine stripe detail rather than an upscaled blurred thumbnail")
+            let large = await PhotoLibrarySource.imageData(assetID: redID, size: CGSize(width: 360, height: 380))
+            let largePixels = large.flatMap(UIImage.init(data:))?.cgImage
+            try require(largePixels?.width == 1080 && largePixels?.height == 1140, "Large widget receives full bounded Retina resolution")
+            let target = PhotoLibrarySource.pixelSize(for: CGSize(width: 160, height: 160))
+            let asset = PHAsset.fetchAssets(withLocalIdentifiers: [picks[0].assetID], options: nil).firstObject!
+            let key = PhotoImageCache.key(asset: asset, target: target)
+            try require(PhotoImageCache.read(key: key, target: target) == data, "Final-quality JPEG survives beyond one timeline request")
+            try require(PhotoImageCache.read(key: key, target: CGSize(width: 1080, height: 1140)) == nil, "Cache rejects a mismatched widget size")
+            let repeatData = await PhotoLibrarySource.imageData(assetID: picks[0].assetID, size: CGSize(width: 160, height: 160))
+            try require(repeatData == data, "Re-added widget can reuse a stable high-quality cached photo")
+            let bounded = PhotoLibrarySource.pixelSize(for: CGSize(width: 1000, height: 2000))
+            try require(bounded == CGSize(width: 600, height: 1200), "Decoded image dimensions stay within extension memory bounds")
+
+            let accepted: Data? = await withCheckedContinuation { continuation in
+                let request = PhotoImageRequest(continuation, target: target)
+                request.receive(image(.red), info: [PHImageResultIsDegradedKey: true])
+                request.receive(blue, info: [PHImageResultIsDegradedKey: false])
+                request.finish(nil) // A later timeout must not resume twice.
+                request.receive(red, info: nil) // A late callback must not replace it.
+            }
+            var center = [UInt8](repeating: 0, count: 4)
+            if let cgImage = accepted.flatMap(UIImage.init(data:))?.cgImage {
+                center.withUnsafeMutableBytes { bytes in
+                    let context = CGContext(data: bytes.baseAddress, width: 1, height: 1, bitsPerComponent: 8,
+                                            bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                    context.draw(cgImage, in: CGRect(x: -240, y: -240, width: 480, height: 480))
+                }
+            }
+            try require(center[2] > 200 && center[0] < 40, "Degraded first callback is ignored and final blue image wins once")
+            let cancelled: Data? = await withCheckedContinuation { continuation in
+                let request = PhotoImageRequest(continuation, target: target)
+                request.receive(red, info: [PHImageCancelledKey: true])
+                request.receive(blue, info: nil)
+            }
+            try require(cancelled == nil, "Cancelled image cannot be accepted or revived by a later callback")
+
+            var configuration = CameraWidgetConfiguration()
+            configuration.style = .photos
+            configuration.source = resolved[1]
+            configuration.identity = identity[0]
+            configuration.intervalMinutes = 60
+            let provider = CameraWidgetProvider(preset: .blank)
+            let now = Date()
+            let unavailable = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
+                                                          loadImage: { _, _, _ in nil })
+            try require(unavailable.entries.count == 1 && unavailable.entries[0].message != nil,
+                        "Failed current photo has a visible message rather than a blank photo entry")
+            try require(unavailable.policy == .after(now.addingTimeInterval(300)),
+                        "Failed current photo retries after five minutes instead of six periods")
+            var loads = 0
+            let partial = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
+                                                      loadImage: { _, _, _ in loads += 1; return loads == 1 ? data : nil })
+            try require(partial.entries.count == 1 && partial.entries.allSatisfy { $0.imageData != nil },
+                        "A failed future download does not replace a good current photo")
+            let next = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
+                                          minutes: 60, now: now)[1].date
+            try require(partial.policy == .after(max(now.addingTimeInterval(300), next.addingTimeInterval(-60))),
+                        "Partial timeline reloads by the next missing photo boundary")
+            configuration.source = nil
+            let unconfigured = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
+            try require(unconfigured.entries[0].style == .photos && unconfigured.entries[0].message?.contains("选择相册") == true,
+                        "Re-added photo widget missing its source displays configuration guidance")
+            configuration.source = resolved[1]
+            configuration.identity = nil
+            let unidentified = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
+            try require(unidentified.entries[0].message?.contains("独立编号") == true,
+                        "Missing identity displays guidance instead of sharing another widget sequence")
+            let outsideData = await PhotoLibrarySource.imageData(assetID: outsideID, size: CGSize(width: 160, height: 160))
+            try require(outsideData != nil, "Synthetic asset can be cached before removal")
+            let removedAsset = PHAsset.fetchAssets(withLocalIdentifiers: [outsideID], options: nil)
+            try await PHPhotoLibrary.shared().performChanges { PHAssetChangeRequest.deleteAssets(removedAsset) }
+            let afterRemoval = await PhotoLibrarySource.imageData(assetID: outsideID, size: CGSize(width: 160, height: 160))
+            try require(afterRemoval == nil, "A deleted asset cannot be displayed from a previously valid cache")
             try require(!KeepWidgetOnHomeScreen.openAppWhenRun && CameraWidgetConfiguration().tapBehavior == .none, "Default tap does not request app opening")
             _ = try await KeepWidgetOnHomeScreen().perform()
             try require(PhotoLibrarySource.assetIDs(sourceID: "folder:deleted-id").isEmpty, "Deleted sources do not fall back to another album")

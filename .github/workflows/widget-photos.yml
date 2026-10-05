@@ -6,6 +6,7 @@ on:
     paths:
       - 'native/WidgetHookTests/PhotoIntegrationApp.swift'
       - 'ios/SessionWidgets/PhotoLibrarySource.swift'
+      - 'ios/SessionWidgets/SessionWidgets.swift'
       - 'ios/SessionWidgets/WidgetOptions.swift'
       - 'native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift'
       - 'scripts/test_widget_photos.sh'

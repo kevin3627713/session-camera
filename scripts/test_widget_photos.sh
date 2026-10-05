@@ -19,9 +19,10 @@ if [[ -z "$simulator_id" ]]; then echo "iOS 18 simulator required for Photos int
 app="$PWD/build/widget-photo-integration/WidgetPhotoIntegration.app"
 mkdir -p "$app"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-xcrun swiftc -swift-version 5 -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
+xcrun swiftc -swift-version 5 -D WIDGET_INTEGRATION_TEST -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
   -o "$app/WidgetPhotoIntegration" native/WidgetHookTests/PhotoIntegrationApp.swift \
   ios/SessionWidgets/WidgetOptions.swift ios/SessionWidgets/PhotoLibrarySource.swift \
+  ios/SessionWidgets/SessionWidgets.swift \
   native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift \
   > artifacts/widget-photo-compile.log 2>&1 || { cat artifacts/widget-photo-compile.log; exit 1; }
 cat > "$app/Info.plist" <<'PLIST'
