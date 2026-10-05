@@ -193,7 +193,10 @@ enum PhotoImageCache {
             .appendingPathComponent("WidgetPhotosHQ-v1", isDirectory: true)
     }
     static func key(asset: PHAsset, target: CGSize) -> String {
-        let value = "\(asset.localIdentifier)|\(asset.modificationDate?.timeIntervalSince1970 ?? 0)|\(Int(target.width))x\(Int(target.height))"
+        key(assetID: asset.localIdentifier, modified: asset.modificationDate?.timeIntervalSince1970 ?? 0, target: target)
+    }
+    static func key(assetID: String, modified: TimeInterval, target: CGSize) -> String {
+        let value = "\(assetID)|\(modified)|\(Int(target.width))x\(Int(target.height))"
         return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
     static func read(key: String, target: CGSize) -> Data? {

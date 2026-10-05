@@ -169,12 +169,15 @@ struct PhotoIntegrationApp: App {
             let unidentified = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
             try require(unidentified.entries[0].message?.contains("独立编号") == true,
                         "Missing identity displays guidance instead of sharing another widget sequence")
-            let outsideData = await PhotoLibrarySource.imageData(assetID: outsideID, size: CGSize(width: 160, height: 160))
-            try require(outsideData != nil, "Synthetic asset can be cached before removal")
-            let removedAsset = PHAsset.fetchAssets(withLocalIdentifiers: [outsideID], options: nil)
-            try await PHPhotoLibrary.shared().performChanges { PHAssetChangeRequest.deleteAssets(removedAsset) }
-            let afterRemoval = await PhotoLibrarySource.imageData(assetID: outsideID, size: CGSize(width: 160, height: 160))
-            try require(afterRemoval == nil, "A deleted asset cannot be displayed from a previously valid cache")
+            // Seed a valid file for an ID that PhotoKit does not contain. Unlike
+            // deleting a real asset, this needs no system confirmation dialog.
+            let missingID = UUID().uuidString + "/L0/001"
+            let missingKey = PhotoImageCache.key(assetID: missingID, modified: 0, target: target)
+            PhotoImageCache.write(data!, key: missingKey)
+            try require(PhotoImageCache.read(key: missingKey, target: target) == data,
+                        "Synthetic missing-asset fixture has a valid cached JPEG")
+            let missing = await PhotoLibrarySource.imageData(assetID: missingID, size: CGSize(width: 160, height: 160))
+            try require(missing == nil, "Cached JPEG cannot make a missing PhotoKit asset accessible")
             try require(!KeepWidgetOnHomeScreen.openAppWhenRun && CameraWidgetConfiguration().tapBehavior == .none, "Default tap does not request app opening")
             _ = try await KeepWidgetOnHomeScreen().perform()
             try require(PhotoLibrarySource.assetIDs(sourceID: "folder:deleted-id").isEmpty, "Deleted sources do not fall back to another album")
