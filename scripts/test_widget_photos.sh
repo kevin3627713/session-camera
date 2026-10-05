@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p artifacts
+if [[ ! -f artifacts/widget-simulator-devices.json ]]; then
+  xcrun simctl list devices available --json > artifacts/widget-simulator-devices.json
+fi
 simulator_id="$(python3 -c '
 import json
 with open("artifacts/widget-simulator-devices.json") as source:
@@ -43,6 +46,19 @@ xcrun simctl bootstatus "$simulator_id" -b
 xcrun simctl install "$simulator_id" "$app"
 xcrun simctl privacy "$simulator_id" grant photos-add com.kevin3627713.sessioncamera.widgetphototests
 xcrun simctl privacy "$simulator_id" grant photos com.kevin3627713.sessioncamera.widgetphototests
+# The iOS 18 simulator's simctl writes Photos auth_version=1. Its new Photos
+# permission flow interprets that legacy record as needing an upgrade prompt,
+# even though auth_value=2. Set version 2 ONLY for this synthetic test host,
+# with the simulator shut down so tccd cannot cache/overwrite the change.
+# Actual authorization is still checked through the production PhotoKit API.
+tcc_database="$HOME/Library/Developer/CoreSimulator/Devices/$simulator_id/data/Library/TCC/TCC.db"
+if [[ ! -f "$tcc_database" ]]; then echo "Missing simulator TCC database" >&2; exit 1; fi
+xcrun simctl shutdown "$simulator_id"
+sqlite3 "$tcc_database" "UPDATE access SET auth_version=2 WHERE service='kTCCServicePhotos' AND client='com.kevin3627713.sessioncamera.widgetphototests' AND auth_value=2;
+SELECT service,client,auth_value,auth_version FROM access WHERE client='com.kevin3627713.sessioncamera.widgetphototests';" \
+  | tee artifacts/widget-photo-simulator-authorization.txt
+xcrun simctl boot "$simulator_id"
+xcrun simctl bootstatus "$simulator_id" -b
 xcrun simctl launch "$simulator_id" com.kevin3627713.sessioncamera.widgetphototests
 container="$(xcrun simctl get_app_container "$simulator_id" com.kevin3627713.sessioncamera.widgetphototests data)"
 report="$container/Documents/widget-photo-integration.json"

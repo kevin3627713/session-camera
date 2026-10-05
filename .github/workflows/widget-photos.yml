@@ -1,0 +1,37 @@
+name: Verify widget Photos integration
+
+on:
+  push:
+    branches: ['experiment/transparent-widgets-ios18']
+    paths:
+      - 'native/WidgetHookTests/PhotoIntegrationApp.swift'
+      - 'ios/SessionWidgets/PhotoLibrarySource.swift'
+      - 'ios/SessionWidgets/WidgetOptions.swift'
+      - 'native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift'
+      - 'scripts/test_widget_photos.sh'
+      - '.github/workflows/widget-photos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: widget-photos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  photos:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test actual album and folder photo access on iOS 18
+        timeout-minutes: 8
+        run: bash scripts/test_widget_photos.sh
+      - name: Upload actual PhotoKit results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: widget-photo-verification-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: ignore
