@@ -6,11 +6,11 @@
 
 Public repository: https://github.com/kevin3627713/session-camera
 
-**当前分支：iOS 18 可编辑小组件实验。** 四种原有预设都可通过原生“编辑小组件”切换五种样式，新增按相册 / 文件夹独立随机展示照片和更换周期，默认点击不打开应用。共用原来的一个 WidgetKit 扩展；更新时请保留扩展。用户已确认上一版透明小组件在 iOS 18.7.8 正常使用，本版新增行为仍需真机验收。使用与验证见 [可编辑小组件说明](docs/CONFIGURABLE_WIDGETS.md)，早期描述符研究见 [透明小组件说明](docs/TRANSPARENT_WIDGETS.md)。正式 main 分支保持原版本。
+**当前分支：iOS 18 可编辑小组件实验。** 四种原有预设都可通过原生“编辑小组件”切换五种样式，新增按相册 / 文件夹独立随机展示照片和更换周期，默认点击不打开应用。共用原来的一个 WidgetKit 扩展；更新时请保留扩展。用户已确认 0.3.0 的其他修改在 iOS 18.7.8 正常，本版集中修复低清照片和加载失败恢复。使用与验证见 [可编辑小组件说明](docs/CONFIGURABLE_WIDGETS.md)，早期描述符研究见 [透明小组件说明](docs/TRANSPARENT_WIDGETS.md)。正式 main 分支保持原版本。
 
-[下载实验版 0.3.0 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.0/session-camera-unsigned.ipa) · [实验预发布与验证记录](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.0)。
+[下载实验版 0.3.1 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.1/session-camera-unsigned.ipa) · [实验预发布与验证记录](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.1)。0.3.1 修复低清预览覆盖高清照片的问题，增加高清缓存，并在加载失败后请求自动重试。
 
-完整构建已通过；真实 iOS 18.6 PhotoKit 测试验证相册、嵌套文件夹、独立编号和图片请求。新版本的主屏翻转、旧组件迁移、材质与点按区域仍需在你的 iOS 18.7.8 手机上验收。
+真实 iOS 18.6 PhotoKit 测试验证相册、嵌套文件夹、独立编号，以及高清细节、缓存和失败重试。更新后的照片清晰度与 iCloud 加载还需在你的 iOS 18.7.8 手机上验收。
 
 ## 界面预览
 

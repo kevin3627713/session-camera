@@ -1,6 +1,6 @@
-# 借拍 0.3.0：编辑样式与独立随机相册
+# 借拍 0.3.1：编辑样式与高清随机相册
 
-在 experiment/transparent-widgets-ios18 分支继续开发。用户已确认上一版 0.2.1 在 iOS 18.7.8 未越狱 iPhone 上正常使用。本版仍是同一个主应用、同一个小组件扩展，不新增签名应用槽位或扩展 App ID。
+在 experiment/transparent-widgets-ios18 分支继续开发。用户已确认 0.3.0 的其他小组件修改正常，但照片模糊，删除重放后先空白、随后仍出现模糊照片。0.3.1 修复图片质量和加载失败的恢复策略。本版仍是同一个主应用、同一个小组件扩展，不新增签名应用槽位或扩展 App ID。
 
 ## 原生编辑小组件
 
@@ -33,7 +33,13 @@
 
 有限权限下只能选择“已授权的照片”，因为 PhotoKit 不提供用户相册和文件夹目录。完整权限时提供自建相册、系统相册和文件夹；目录显示嵌套路径以区分同名相册。选择文件夹会递归包含其中所有子文件夹的相册，去除重复资产。隐藏照片、视频和所选来源以外的照片不加入随机集合。来源被删除或不可访问时显示提示，不会擅自换成其他相册。
 
-周期可填写 5～10080 分钟，默认 60 分钟。系统对小组件更新有预算和调度，时间可能延后，不能承诺准确到秒。最多预先提供六个时点；照片缩略图使用压缩数据保存，限制尺寸与请求时间，避免大量解码图片占用小组件内存。iCloud 图片允许通过系统 PhotoKit 下载；暂时无法得到图片时显示提示。
+周期可填写 5～10080 分钟，默认 60 分钟。系统对小组件更新有预算和调度，时间可能延后，不能承诺准确到秒。最多预先提供六个有图片的时点，加载过程中遇到缺失图片就停止预排，不把空图片放到后续时间线上。
+
+0.3.0 使用 opportunistic 请求，收到第一个 UIImage 就取消请求，没有检查 PHImageResultIsDegradedKey。PhotoKit 可能先交付低清预览，再交付清晰图片；旧代码将后者取消。0.3.1 使用 highQualityFormat / exact，并显式忽略低清回调。按三倍显示点数请求图片，最长边上限 1200 像素，然后按组件宽高裁剪、编码为 JPEG，兼顾屏幕清晰度与扩展内存；原照片自身的分辨率仍限制可得到的细节。
+
+当前图片最多等待八秒，未来图片最多等待两秒，总预加载预算十六秒。首次失败会显示加载提示，请求五分钟后重试；后续图片失败则保留已经准备好的照片，并在缺失时点前请求重新加载。所有刷新请求仍受系统调度约束。iCloud 原图允许通过系统 PhotoKit 下载；网络慢时可以在机主设置中手动刷新。
+
+只缓存最终高清 JPEG，保存在扩展自己的 Caches 目录，按照片 ID、修改时间和像素尺寸区分；不同组件可以复用同一张图的编码数据，各自的随机序列仍独立。最多保留 32 个文件、24 MiB，使用首次解锁后的文件保护。删除再添加小组件可复用尚未被系统清理的缓存，但需要重新选择来源、样式和编号；不需要反复删除组件来刷新。每次读取缓存前先检查当前权限和资产是否仍可访问，来源被删除时不会改读其他来源。
 
 每个实例的来源、周期、点击行为和独立编号由自己的配置保存。独立编号由动态实体查询自动提供新 UUID；复制已有小组件可能复制其全部参数，这时在独立编号中选择新编号。不同编号有不同的随机洗牌和周期相位，没有全局“当前照片”。两张组件偶尔显示同一张照片是正常随机结果；只有一张可用照片时必然重复。
 
@@ -49,9 +55,13 @@
 
 共享 WidgetCore 测试验证不同实例的随机序列和相位、同周期重载稳定、跨轮无相邻重复、周期与来源范围、异常输入，以及嵌套文件夹去重和循环处理。实际编译和 IPA 检查还要求 App Intents 元数据存在，避免“有代码但编辑入口未注册”。
 
-独立 iOS 18 模拟器测试宿主使用真实 PhotoKit 创建合成图片、两个相册和嵌套文件夹，调用生产 PhotoLibrarySource、实体查询和计划源码，检查读取范围、隐藏照片排除、去重、实体恢复与实际 JPEG 请求。测试宿主和合成图不会加入发行 IPA。
+独立 iOS 18 模拟器测试宿主使用真实 PhotoKit 创建合成图片、两个相册和嵌套文件夹，调用生产 PhotoLibrarySource、实体查询、计划和时间线源码。除读取范围、隐藏照片排除、去重和实体恢复外，0.3.1 增加大尺寸细线纹理图片，检查实际 JPEG 像素尺寸和细节对比度，避免仅验证“能解码”而漏掉模糊图片；另模拟先低清、后高清以及迟到回调，验证最终采用高清结果且只完成一次。缓存复用、尺寸隔离、缺失资产不使用缓存、失败提示和重试时间线也有回归检查。缺失资产用真实缓存文件和不存在的资产 ID 验证，不调用需要用户确认的系统删除接口。测试宿主和合成图不会加入发行 IPA。
 
-2026-10-05 完整构建 [37299084781](https://github.com/kevin3627713/session-camera/actions/runs/37299084781) 已通过，代码提交为 a38d7035c92a346cfc9181deee6207d13bdca28f。通过 19 项 Swift 测试、18 项描述符检查、2 项 Flutter 测试；真实 iOS 18.6 PhotoKit 宿主的 13 项检查全部通过，结果保留在 [widget-photos-ios18.6.json](verification/widget-photos-ios18.6.json)。[独立相册测试](https://github.com/kevin3627713/session-camera/actions/runs/37299084826) 也已通过。
+0.3.0 的完整构建 [37299084781](https://github.com/kevin3627713/session-camera/actions/runs/37299084781) 已通过，代码提交为 a38d7035c92a346cfc9181deee6207d13bdca28f。通过 19 项 Swift 测试、18 项描述符检查、2 项 Flutter 测试和 13 项 PhotoKit 宿主检查，但当时没有验证图片细节和低清回调，因此未覆盖本次真机发现的问题。
+
+0.3.1 的完整构建 [37306257118](https://github.com/kevin3627713/session-camera/actions/runs/37306257118) 与 [照片专项测试 37306256886](https://github.com/kevin3627713/session-camera/actions/runs/37306256886) 均已通过，代码提交为 c0e3f7c29715005e0c63e38982eaa01c13c1e955。保留的 19 项 Swift 测试、18 项描述符检查和 2 项 Flutter 测试通过，PhotoKit / 时间线检查增加到 30 项，见 [widget-photos-ios18.6.json](verification/widget-photos-ios18.6.json)。真实高分辨率合成图得到 480×480 与 1080×1140 像素 JPEG，细线纹理对比度通过阈值；结果不是仅将低清图放大。高清图片替换低清回调、重载缓存、缺失资产拒绝读取缓存和失败重试策略均执行了生产源码。
+
+最终 0.3.1 IPA 为 6,632,637 字节，SHA-256：98ac7f90f757547b89586aec6c0f461e750945c5a54f852ff81984c5817ae9e3。主应用与扩展均为 0.3.1 / build 6，仍只有一个 arm64 扩展；元数据中的五种样式、配置字段与默认点击不打开均验证通过。
 
 真实测试暴露了 iOS 18.6 的按标识查询 PHCollectionList 接口异常。本版使用明确的 .folder 类型查询建立目录索引，递归时仅按选定 ID 读取。测试环境为合成数据宿主修正模拟器命令行授权写入的旧 auth_version；这段初始化只在 CI 脚本，不进入应用。主应用和扩展仍使用系统 PhotoKit 授权。
 
@@ -59,4 +69,4 @@
 
 原生主屏翻转、旧小组件迁移、透明 / 材质显示、点击区域、扩展的真机权限继承及真实调度时间最终仍需在 iPhone 验收。
 
-参考：[Apple 可配置小组件](https://developer.apple.com/documentation/widgetkit/making-a-configurable-widget)、[交互式小组件](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities)、[刷新调度](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[有限照片权限](https://developer.apple.com/documentation/photokit/delivering-an-enhanced-privacy-experience-in-your-photos-app)。
+参考：[Apple 可配置小组件](https://developer.apple.com/documentation/widgetkit/making-a-configurable-widget)、[交互式小组件](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities)、[刷新调度](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[有限照片权限](https://developer.apple.com/documentation/photokit/delivering-an-enhanced-privacy-experience-in-your-photos-app)、[低清回调标记](https://developer.apple.com/documentation/photos/phimageresultisdegradedkey)、[高清请求](https://developer.apple.com/documentation/photos/phimagerequestoptionsdeliverymode/highqualityformat)。
