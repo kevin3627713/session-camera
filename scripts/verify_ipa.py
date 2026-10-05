@@ -42,9 +42,10 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     configuration = definitions["actions"]["CameraWidgetConfiguration"]
     assert "com.apple.link.systemProtocol.WidgetConfiguration" in configuration["systemProtocolMetadata"]
     parameters = {item["name"]: item for item in configuration["parameters"]}
-    assert set(parameters) == {"style", "tapBehavior", "source", "intervalMinutes", "identity"}
+    assert set(parameters) == {"style", "tapBehavior", "source", "intervalMinutes", "identity", "photoDiagnostic"}
     assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
     assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
+    assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
     assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
     styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
     assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}

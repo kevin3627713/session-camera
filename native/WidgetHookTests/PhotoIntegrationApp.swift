@@ -112,7 +112,13 @@ struct PhotoIntegrationApp: App {
             let repeatData = await PhotoLibrarySource.imageData(assetID: picks[0].assetID, size: CGSize(width: 160, height: 160))
             try require(repeatData == data, "Re-added widget can reuse a stable high-quality cached photo")
             let bounded = PhotoLibrarySource.pixelSize(for: CGSize(width: 1000, height: 2000))
-            try require(bounded == CGSize(width: 600, height: 1200), "Decoded image dimensions stay within extension memory bounds")
+            try require(bounded == CGSize(width: 600, height: 1200), "Requested image dimensions have a bounded longest edge")
+            let wideCrop = PhotoLibrarySource.cropRect(assetSize: CGSize(width: 6000, height: 1000), target: target)
+            try require(abs(wideCrop.width - 1.0 / 6) < 0.0001 && wideCrop.height == 1,
+                        "Panorama request asks PhotoKit for the centered crop before UIImage rendering")
+            let tallCrop = PhotoLibrarySource.cropRect(assetSize: CGSize(width: 1000, height: 6000), target: target)
+            try require(tallCrop.width == 1 && abs(tallCrop.height - 1.0 / 6) < 0.0001,
+                        "Portrait request bounds its crop before UIImage rendering")
 
             let accepted: Data? = await withCheckedContinuation { continuation in
                 let request = PhotoImageRequest(continuation, target: target)
@@ -154,12 +160,24 @@ struct PhotoIntegrationApp: App {
             var loads = 0
             let partial = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
                                                       loadImage: { _, _, _ in loads += 1; return loads == 1 ? data : nil })
-            try require(partial.entries.count == 1 && partial.entries.allSatisfy { $0.imageData != nil },
-                        "A failed future download does not replace a good current photo")
+            try require(loads == 1 && partial.entries.count == 1 && partial.entries.allSatisfy { $0.imageData != nil },
+                        "Timeline loads and archives only the current photo rather than preloading six images")
             let next = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
                                           minutes: 60, now: now)[1].date
-            try require(partial.policy == .after(max(now.addingTimeInterval(300), next.addingTimeInterval(-60))),
-                        "Partial timeline reloads by the next missing photo boundary")
+            try require(partial.policy == .after(next),
+                        "Single-photo timeline requests reload at its instance-specific next boundary")
+            configuration.photoDiagnostic = .library
+            loads = 0
+            let libraryCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
+                                                           loadImage: { _, _, _ in loads += 1; return data })
+            try require(loads == 0 && libraryCheck.entries[0].imageData == nil && libraryCheck.entries[0].message?.contains("可用照片：2") == true,
+                        "Library diagnostic reports scoped asset count without requesting a photo")
+            configuration.photoDiagnostic = .request
+            let requestCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
+                                                           loadImage: { _, _, _ in data })
+            try require(requestCheck.entries[0].imageData == nil && requestCheck.entries[0].message?.contains("480 × 480") == true,
+                        "Request diagnostic returns dimensions as text without passing photo bytes to the view")
+            configuration.photoDiagnostic = .off
             configuration.source = nil
             let unconfigured = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
             try require(unconfigured.entries[0].style == .photos && unconfigured.entries[0].message?.contains("选择相册") == true,
@@ -169,6 +187,15 @@ struct PhotoIntegrationApp: App {
             let unidentified = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
             try require(unidentified.entries[0].message?.contains("独立编号") == true,
                         "Missing identity displays guidance instead of sharing another widget sequence")
+            configuration.source = nil
+            configuration.photoDiagnostic = .rendering
+            loads = 0
+            let renderCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
+                                                          loadImage: { _, _, _ in loads += 1; return data })
+            try require(loads == 0 && renderCheck.entries[0].imageData.flatMap(UIImage.init(data:))?.cgImage?.width == 64,
+                        "Rendering diagnostic supplies a tiny synthetic image without a source, identity or PhotoKit request")
+            try require(CameraWidgetConfiguration().photoDiagnostic == .off,
+                        "Diagnostics are disabled by default for existing and new widgets")
             // Seed a valid file for an ID that PhotoKit does not contain. Unlike
             // deleting a real asset, this needs no system confirmation dialog.
             let missingID = UUID().uuidString + "/L0/001"

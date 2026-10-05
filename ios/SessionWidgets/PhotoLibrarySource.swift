@@ -2,6 +2,42 @@ import Foundation
 import Photos
 import UIKit
 import CryptoKit
+import ImageIO
+import os
+import Darwin
+
+enum WidgetPhotoDiagnostics {
+    private static let logger = Logger(subsystem: "com.kevin3627713.sessioncamera.widgets", category: "PhotoPipeline")
+    static var memoryMiB: Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : 0
+    }
+    static func record(_ phase: String) {
+        // No asset IDs, album names or photo bytes enter the system log.
+        logger.info("phase=\(phase, privacy: .public) memoryMiB=\(memoryMiB, privacy: .public)")
+    }
+    static func dimensions(_ data: Data) -> CGSize? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
+              let height = properties[kCGImagePropertyPixelHeight] as? NSNumber else { return nil }
+        return CGSize(width: CGFloat(width.doubleValue), height: CGFloat(height.doubleValue))
+    }
+    static func testImage() -> Data? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1; format.opaque = true; format.preferredRange = .standard
+        return UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64), format: format).image { context in
+            UIColor.systemBlue.setFill(); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+            UIColor.systemRed.setFill(); context.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
+        }.pngData()
+    }
+}
 
 enum PhotoLibrarySource {
     static var status: PHAuthorizationStatus { PHPhotoLibrary.authorizationStatus(for: .readWrite) }
@@ -95,19 +131,25 @@ enum PhotoLibrarySource {
     }
 
     static func imageData(assetID: String, size: CGSize, timeout: TimeInterval = 8) async -> Data? {
+        WidgetPhotoDiagnostics.record("image-access-check")
         // Recheck access and the asset before consulting the extension's cache.
         // Cached bytes must never bypass a removed asset or revoked permission.
         guard status == .authorized || status == .limited,
               let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject else { return nil }
         let target = pixelSize(for: size)
         let cacheKey = PhotoImageCache.key(asset: asset, target: target)
-        if let cached = PhotoImageCache.read(key: cacheKey, target: target) { return cached }
+        if let cached = PhotoImageCache.read(key: cacheKey, target: target) {
+            WidgetPhotoDiagnostics.record("image-cache-hit")
+            return cached
+        }
         let data: Data? = await withCheckedContinuation { continuation in
             let request = PhotoImageRequest(continuation, target: target)
             let options = PHImageRequestOptions()
             options.deliveryMode = .highQualityFormat
             options.resizeMode = .exact
+            options.normalizedCropRect = cropRect(assetSize: CGSize(width: CGFloat(asset.pixelWidth), height: CGFloat(asset.pixelHeight)), target: target)
             options.isNetworkAccessAllowed = true
+            WidgetPhotoDiagnostics.record("image-request-start")
             let identifier = PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: options) { image, info in
                 request.receive(image, info: info)
             }
@@ -115,7 +157,15 @@ enum PhotoLibrarySource {
             DispatchQueue.global().asyncAfter(deadline: .now() + max(0.1, timeout)) { request.finish(nil) }
         }
         if let data { PhotoImageCache.write(data, key: cacheKey) }
+        WidgetPhotoDiagnostics.record(data == nil ? "image-request-unavailable" : "image-request-complete")
         return data
+    }
+
+    static func cropRect(assetSize: CGSize, target: CGSize) -> CGRect {
+        guard assetSize.width > 0, assetSize.height > 0, target.width > 0, target.height > 0 else { return .zero }
+        let ratio = (target.width / target.height) / (assetSize.width / assetSize.height)
+        let width = min(1, ratio), height = min(1, 1 / ratio)
+        return CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
     }
 
     static func pixelSize(for size: CGSize) -> CGSize {
@@ -152,10 +202,14 @@ final class PhotoImageRequest: @unchecked Sendable {
         let completed = continuation == nil
         lock.unlock()
         guard !completed else { return }
+        if let pixels = image.cgImage {
+            WidgetPhotoDiagnostics.record("image-final-\(pixels.width)x\(pixels.height)-\(pixels.bitsPerPixel)bpp")
+        }
         let data = autoreleasepool {
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
             format.opaque = true
+            format.preferredRange = .standard
             let scale = max(target.width / image.size.width, target.height / image.size.height)
             let rect = CGRect(x: (target.width - image.size.width * scale) / 2,
                               y: (target.height - image.size.height * scale) / 2,
@@ -201,8 +255,8 @@ enum PhotoImageCache {
     }
     static func read(key: String, target: CGSize) -> Data? {
         let url = directory.appendingPathComponent(key + ".jpg")
-        guard let data = try? Data(contentsOf: url), let image = UIImage(data: data),
-              let pixels = image.cgImage, pixels.width == Int(target.width), pixels.height == Int(target.height) else { return nil }
+        guard let data = try? Data(contentsOf: url),
+              WidgetPhotoDiagnostics.dimensions(data) == target else { return nil }
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
         return data
     }

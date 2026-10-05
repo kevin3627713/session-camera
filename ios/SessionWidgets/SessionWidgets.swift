@@ -32,6 +32,7 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
                       loadImage: (String, CGSize, TimeInterval) async -> Data? = {
                           await PhotoLibrarySource.imageData(assetID: $0, size: $1, timeout: $2)
                       }) async -> Timeline<CameraWidgetEntry> {
+        WidgetPhotoDiagnostics.record("provider-start")
         let style = resolved(configuration)
         func entry(_ message: String) -> CameraWidgetEntry {
             CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior, message: message)
@@ -39,6 +40,14 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         guard style == .photos else {
             return Timeline(entries: [CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior)], policy: .never)
         }
+        // This mode deliberately exercises the same Button/image/WidgetKit
+        // view as a photo, without initializing PhotoKit or reading any album.
+        if configuration.photoDiagnostic == .rendering {
+            WidgetPhotoDiagnostics.record("rendering-test-ready")
+            return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
+                imageData: WidgetPhotoDiagnostics.testImage(), message: "绘制测试通过\n红蓝色块与文字")], policy: .never)
+        }
+        WidgetPhotoDiagnostics.record("authorization-check")
         guard PhotoLibrarySource.status == .authorized || PhotoLibrarySource.status == .limited else {
             return Timeline(entries: [entry("请在借拍的机主设置中开启照片权限")], policy: .after(now.addingTimeInterval(900)))
         }
@@ -51,42 +60,48 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         guard (5...10_080).contains(configuration.intervalMinutes) else {
             return Timeline(entries: [entry("更换间隔请填写 5～10080 分钟")], policy: .never)
         }
+        WidgetPhotoDiagnostics.record("source-query-start")
         let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
+        WidgetPhotoDiagnostics.record("source-query-complete-count-\(assets.count)")
+        if configuration.photoDiagnostic == .library {
+            return Timeline(entries: [entry("相册读取完成\n可用照片：\(assets.count)\n权限：\(PhotoLibrarySource.status.rawValue)\n内存：\(String(format: "%.1f", WidgetPhotoDiagnostics.memoryMiB)) MiB")], policy: .never)
+        }
         guard !assets.isEmpty else {
             let message = PhotoLibrarySource.status == .limited && source.id != PhotoLibrarySource.accessibleID
                 ? "读取相册/文件夹需要完整照片访问；有限权限可选已授权照片"
                 : "来源为空、已删除或没有可访问的照片"
             return Timeline(entries: [entry(message)], policy: .after(now.addingTimeInterval(900)))
         }
+        // Calculate the next boundary but load only the current image. Six
+        // preloaded entries also caused snapshot() to load six full images.
         let picks = PhotoSchedule.plan(assetIDs: assets, instanceID: identity.id, sourceID: source.id,
-                                      minutes: configuration.intervalMinutes, now: now)
-        var data: [String: Data] = [:], entries: [CameraWidgetEntry] = []
-        let deadline = Date().addingTimeInterval(16)
-        for pick in picks {
-            if data[pick.assetID] == nil && Date() < deadline {
-                let requestTimeout: TimeInterval = entries.isEmpty ? 8 : 2
-                data[pick.assetID] = await loadImage(pick.assetID, size, min(requestTimeout, max(0.1, deadline.timeIntervalSinceNow)))
-            }
-            guard let imageData = data[pick.assetID] else {
-                // Never enqueue missing future images: that would replace a
-                // good photo with an error and delay retry for up to six periods.
-                if entries.isEmpty {
-                    return Timeline(entries: [entry("照片正在加载，请保持联网；稍后会自动重试")],
-                                    policy: .after(now.addingTimeInterval(300)))
-                }
-                let retry = max(now.addingTimeInterval(300), pick.date.addingTimeInterval(-60))
-                return Timeline(entries: entries, policy: .after(retry))
-            }
-            entries.append(CameraWidgetEntry(date: pick.date, style: .photos, tapBehavior: configuration.tapBehavior,
-                imageData: imageData))
+                                      minutes: configuration.intervalMinutes, now: now, count: 2)
+        guard let imageData = await loadImage(picks[0].assetID, size, 8) else {
+            WidgetPhotoDiagnostics.record("provider-image-unavailable")
+            return Timeline(entries: [entry("照片暂未加载；稍后会重试\n可在编辑小组件中使用照片排查")],
+                            policy: .after(now.addingTimeInterval(300)))
         }
-        return Timeline(entries: entries, policy: .atEnd)
+        if configuration.photoDiagnostic == .request {
+            let pixels = WidgetPhotoDiagnostics.dimensions(imageData) ?? .zero
+            WidgetPhotoDiagnostics.record("request-test-ready")
+            return Timeline(entries: [entry("照片请求完成\n\(Int(pixels.width)) × \(Int(pixels.height)) 像素\n\(imageData.count / 1024) KiB\n内存：\(String(format: "%.1f", WidgetPhotoDiagnostics.memoryMiB)) MiB")], policy: .never)
+        }
+        WidgetPhotoDiagnostics.record("timeline-ready-one-image")
+        return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
+            imageData: imageData)], policy: .after(picks[1].date))
     }
 }
 
 struct CameraWidgetView: View {
     let entry: CameraWidgetEntry
     @Environment(\.widgetFamily) private var family
+
+    private func photoImage(_ data: Data) -> UIImage? {
+        WidgetPhotoDiagnostics.record("view-image-decode-start")
+        let image = UIImage(data: data)
+        WidgetPhotoDiagnostics.record(image == nil ? "view-image-invalid" : "view-image-ready")
+        return image
+    }
 
     var body: some View {
         Group {
@@ -111,9 +126,13 @@ struct CameraWidgetView: View {
                 case .standard: Color(uiColor: .secondarySystemBackground)
                 case .blur: Rectangle().fill(.regularMaterial)
                 case .photos:
-                    if let data = entry.imageData, let image = UIImage(data: data) {
+                    if let data = entry.imageData, let image = photoImage(data) {
                         Image(uiImage: image).resizable().widgetAccentedRenderingMode(.fullColor).scaledToFill()
                             .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+                        if let message = entry.message {
+                            Text(message).font(.system(size: 13, weight: .semibold)).multilineTextAlignment(.center)
+                                .foregroundStyle(.white).padding(8).background(.black.opacity(0.6)).unredacted()
+                        }
                     } else {
                         Color(uiColor: .secondarySystemBackground)
                         VStack(spacing: 12) {

@@ -1,6 +1,6 @@
-# 借拍 0.3.1：编辑样式与高清随机相册
+# 借拍 0.3.2：编辑样式与随机相册排查
 
-在 experiment/transparent-widgets-ios18 分支继续开发。用户已确认 0.3.0 的其他小组件修改正常，但照片模糊，删除重放后先空白、随后仍出现模糊照片。0.3.1 修复图片质量和加载失败的恢复策略。本版仍是同一个主应用、同一个小组件扩展，不新增签名应用槽位或扩展 App ID。
+在 experiment/transparent-widgets-ios18 分支继续开发。机主确认 0.3.1 在 iOS 18.7.8 的所有尺寸仍停在系统骨架占位，少量照片也会发生、没有开启 iCloud 优化。0.3.2 减少图片预加载并加入组件内分阶段诊断，作为待真机验证的候选版。调查资料、证据强度和操作见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)。本版仍是同一个主应用、同一个小组件扩展。
 
 ## 原生编辑小组件
 
@@ -33,11 +33,11 @@
 
 有限权限下只能选择“已授权的照片”，因为 PhotoKit 不提供用户相册和文件夹目录。完整权限时提供自建相册、系统相册和文件夹；目录显示嵌套路径以区分同名相册。选择文件夹会递归包含其中所有子文件夹的相册，去除重复资产。隐藏照片、视频和所选来源以外的照片不加入随机集合。来源被删除或不可访问时显示提示，不会擅自换成其他相册。
 
-周期可填写 5～10080 分钟，默认 60 分钟。系统对小组件更新有预算和调度，时间可能延后，不能承诺准确到秒。最多预先提供六个有图片的时点，加载过程中遇到缺失图片就停止预排，不把空图片放到后续时间线上。
+周期可填写 5～10080 分钟，默认 60 分钟。0.3.2 每次仅准备当前一张照片，并在该实例的下一周期边界请求更新；快照也只请求一张图片。系统对小组件更新有预算和调度，时间可能延后，短周期尤为明显。
 
 0.3.0 使用 opportunistic 请求，收到第一个 UIImage 就取消请求，没有检查 PHImageResultIsDegradedKey。PhotoKit 可能先交付低清预览，再交付清晰图片；旧代码将后者取消。0.3.1 使用 highQualityFormat / exact，并显式忽略低清回调。按三倍显示点数请求图片，最长边上限 1200 像素，然后按组件宽高裁剪、编码为 JPEG，兼顾屏幕清晰度与扩展内存；原照片自身的分辨率仍限制可得到的细节。
 
-当前图片最多等待八秒，未来图片最多等待两秒，总预加载预算十六秒。首次失败会显示加载提示，请求五分钟后重试；后续图片失败则保留已经准备好的照片，并在缺失时点前请求重新加载。所有刷新请求仍受系统调度约束。iCloud 原图允许通过系统 PhotoKit 下载；网络慢时可以在机主设置中手动刷新。
+0.3.2 保留高清回调、三倍点数和最长边 1200 像素；请求阶段指定中心裁剪，最终渲染器使用标准动态范围，缓存尺寸检查改用 ImageIO 元数据。当前图片最多等待八秒；没有未来图片预加载。失败会显示提示并请求五分钟后重试。iCloud 原图仍允许通过系统 PhotoKit 下载，刷新时间受系统约束。
 
 只缓存最终高清 JPEG，保存在扩展自己的 Caches 目录，按照片 ID、修改时间和像素尺寸区分；不同组件可以复用同一张图的编码数据，各自的随机序列仍独立。最多保留 32 个文件、24 MiB，使用首次解锁后的文件保护。删除再添加小组件可复用尚未被系统清理的缓存，但需要重新选择来源、样式和编号；不需要反复删除组件来刷新。每次读取缓存前先检查当前权限和资产是否仍可访问，来源被删除时不会改读其他来源。
 
@@ -65,8 +65,8 @@
 
 真实测试暴露了 iOS 18.6 的按标识查询 PHCollectionList 接口异常。本版使用明确的 .folder 类型查询建立目录索引，递归时仅按选定 ID 读取。测试环境为合成数据宿主修正模拟器命令行授权写入的旧 auth_version；这段初始化只在 CI 脚本，不进入应用。主应用和扩展仍使用系统 PhotoKit 授权。
 
-最终 IPA 的 App Intents 元数据还验证了五种实际样式（加一个沿用预设的兼容默认项）、全部五个配置参数、两个实体查询、点击默认 none、间隔默认 60 分钟，以及无操作意图 openAppWhenRun=false。分发包只有一个 arm64 扩展，版本与主应用一致，未包含测试宿主或合成图片。
+IPA 检查要求 App Intents 元数据包含五种实际样式（加一个沿用预设的兼容默认项）、原有五个配置参数和默认关闭的照片排查参数、两个实体查询、点击默认 none、间隔默认 60 分钟，以及无操作意图 openAppWhenRun=false。分发包只有一个 arm64 扩展，版本与主应用一致，未包含测试宿主或合成相册。
 
-原生主屏翻转、旧小组件迁移、透明 / 材质显示、点击区域、扩展的真机权限继承及真实调度时间最终仍需在 iPhone 验收。
+上述 PhotoKit 验证使用普通应用宿主，未覆盖系统托管 WidgetKit 归档/渲染及真机扩展内存额度。0.3.1 真机反馈已经说明该验证不足。原生主屏翻转、旧小组件迁移、透明 / 材质显示、点击区域、扩展的真机权限继承、图片显示及真实调度时间最终仍需在 iPhone 验收。
 
 参考：[Apple 可配置小组件](https://developer.apple.com/documentation/widgetkit/making-a-configurable-widget)、[交互式小组件](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities)、[刷新调度](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[有限照片权限](https://developer.apple.com/documentation/photokit/delivering-an-enhanced-privacy-experience-in-your-photos-app)、[低清回调标记](https://developer.apple.com/documentation/photos/phimageresultisdegradedkey)、[高清请求](https://developer.apple.com/documentation/photos/phimagerequestoptionsdeliverymode/highqualityformat)。
