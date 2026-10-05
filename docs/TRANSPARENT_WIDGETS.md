@@ -1,5 +1,7 @@
 # 透明小组件实验：借拍的同一个 IPA
 
+本文保留 0.2.1 的原始方法与验证记录。用户已确认该版在 iOS 18.7.8 正常使用。0.3.0 已加入原生编辑、独立随机相册与默认不跳转，并调整背景为实例内绘制，当前使用说明见 [CONFIGURABLE_WIDGETS.md](CONFIGURABLE_WIDGETS.md)。
+
 本实验从借拍 v0.2.0 / cb7895d 创建 experiment/transparent-widgets-ios18 分支，应用版本 0.2.1（build 4）。正式 main 分支不受本实验影响。目标设备是用户的未越狱 iPhone，iOS 18.7.8；该小版本的真机显示效果尚待验收。
 
 ## 安装和使用

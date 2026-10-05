@@ -1,0 +1,20 @@
+{
+  "checks" : [
+    "Full Photos authorization",
+    "Album selects only its non-hidden photos",
+    "Folder includes nested albums and deduplicates photos",
+    "Hidden and unrelated photos excluded",
+    "Folder appears in native entity choices",
+    "Nested album path appears in choices",
+    "Persisted sources resolve by identifier",
+    "New widget identities are unique",
+    "Widget identity survives entity resolution",
+    "Scheduled photos stay inside selected folder",
+    "Actual PhotoKit image request produces displayable data",
+    "Default tap does not request app opening",
+    "Deleted sources do not fall back to another album"
+  ],
+  "count" : 13,
+  "os" : "Version 18.6 (Build 22G86)",
+  "success" : true
+}

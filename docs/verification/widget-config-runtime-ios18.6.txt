@@ -1,0 +1,14 @@
+2026-10-05 10:57:08.986 widget-runtime-probe[9067:36167] [SessionWidgetHook] installed iOS 18 descriptor hook
+Actual simulator OS: Version 18.6 (Build 22G86)
+_TtCC9WidgetKit24WidgetExtensionXPCServer14ExportedObject getAllCurrentDescriptorsWithCompletion:: v24@0:8@?16
+_TtC9WidgetKit21DescriptorFetchResult initWithCoder:: @24@0:8@16
+CHSBaseDescriptor: AVAILABLE
+CHSControlDescriptor: AVAILABLE
+CHSWidgetDescriptor: AVAILABLE
+CHSMutableWidgetDescriptor kind: @16@0:8
+CHSMutableWidgetDescriptor setBackgroundRemovable:: v20@0:8B16
+CHSMutableWidgetDescriptor setTransparent:: v20@0:8B16
+CHSMutableWidgetDescriptor setPreferredBackgroundStyle:: v24@0:8q16
+CHSMutableWidgetDescriptor setSupportsVibrantContent:: v20@0:8B16
+Production hook installation: YES
+Runtime compatibility: AVAILABLE; iOS 18.7.8 device rendering remains unverified.

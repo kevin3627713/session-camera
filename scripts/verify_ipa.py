@@ -1,4 +1,5 @@
 """Validate the real distribution bundle without extracting it."""
+import json
 import plistlib
 import sys
 import zipfile
@@ -37,7 +38,22 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         assert kind in widget_executable, f"Missing legacy-compatible widget kind: {kind!r}"
     metadata = [name for name in archive.namelist() if name.startswith(extension_root + "Metadata.appintents/") and name.endswith(".actionsdata")]
     assert metadata, "Missing App Intents metadata; widget editing/actions will not work"
+    definitions = json.loads(archive.read(next(name for name in metadata if name.endswith("/extract.actionsdata"))))
+    configuration = definitions["actions"]["CameraWidgetConfiguration"]
+    assert "com.apple.link.systemProtocol.WidgetConfiguration" in configuration["systemProtocolMetadata"]
+    parameters = {item["name"]: item for item in configuration["parameters"]}
+    assert set(parameters) == {"style", "tapBehavior", "source", "intervalMinutes", "identity"}
+    assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
+    assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
+    assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
+    styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
+    assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}
+    for entity, query in (("PhotoSourceEntity", "PhotoSourceQuery"), ("WidgetIdentityEntity", "WidgetIdentityQuery")):
+        assert definitions["entities"][entity]["defaultQueryIdentifier"] == "SessionWidgets." + query
+        assert definitions["queries"][query]["defaultQueryForEntity"] is True
     assert b"FakeFetchResult" not in widget_executable
+    for test_marker in (b"WidgetPhotoIntegration", b"Widget root fixture"):
+        assert test_marker not in widget_executable and test_marker not in executable, "Photos test host leaked into release"
     assert widget_executable[:4] == bytes.fromhex("cffaedfe"), "Widget executable must be Mach-O 64-bit"
     assert int.from_bytes(widget_executable[4:8], "little") == 0x0100000C, "Widget must contain device arm64 code"
     for selector in (b"getAllCurrentDescriptorsWithCompletion:", b"setTransparent:", b"setPreferredBackgroundStyle:"):
