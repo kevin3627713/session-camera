@@ -19,11 +19,11 @@ if [[ -z "$simulator_id" ]]; then echo "iOS 18 simulator required for Photos int
 app="$PWD/build/widget-photo-integration/WidgetPhotoIntegration.app"
 mkdir -p "$app"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-diagnostic_flags=()
+compiler_flags=(-swift-version 5 -D WIDGET_INTEGRATION_TEST)
 if [[ "${WIDGET_PHOTO_DIAGNOSTICS:-0}" == "1" ]]; then
-  diagnostic_flags=(-D WIDGET_PHOTO_DIAGNOSTICS)
+  compiler_flags+=(-D WIDGET_PHOTO_DIAGNOSTICS)
 fi
-xcrun swiftc -swift-version 5 -D WIDGET_INTEGRATION_TEST "${diagnostic_flags[@]}" -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
+xcrun swiftc "${compiler_flags[@]}" -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
   -o "$app/WidgetPhotoIntegration" native/WidgetHookTests/PhotoIntegrationApp.swift \
   ios/SessionWidgets/WidgetOptions.swift ios/SessionWidgets/PhotoLibrarySource.swift \
   ios/SessionWidgets/SessionWidgets.swift \
