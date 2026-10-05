@@ -9,6 +9,11 @@ on:
       - 'scripts/capture_ui_preview.sh'
       - '.github/workflows/ui-preview.yml'
   workflow_dispatch:
+    inputs:
+      native_tests:
+        description: Run hosted session lifecycle and editing tests instead of screenshots
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,6 +24,7 @@ concurrency:
 
 jobs:
   screenshots:
+    if: ${{ !inputs.native_tests }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -31,3 +37,26 @@ jobs:
           name: camera-ui-${{ github.run_number }}
           path: artifacts/ui/
           if-no-files-found: error
+  native-tests:
+    if: ${{ inputs.native_tests }}
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup pinned Flutter for the XCTest host
+        run: |
+          git clone --depth 1 --branch 3.35.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Test actual camera background handling and photo editing on iOS 18
+        timeout-minutes: 20
+        run: bash scripts/test_ios_simulator.sh
+      - name: Upload XCTest results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: camera-native-tests-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: ignore

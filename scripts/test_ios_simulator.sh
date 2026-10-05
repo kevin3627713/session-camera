@@ -5,13 +5,13 @@ simulator_id="$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
 devices = json.load(sys.stdin)["devices"]
 for runtime in sorted(devices, reverse=True):
-    if ".iOS-" in runtime:
+    if ".iOS-18-" in runtime:
         iphones = [device for device in devices[runtime] if device["name"].startswith("iPhone")]
         if iphones:
             print(iphones[0]["udid"])
             break
 else:
-    raise SystemExit("No iPhone simulator runtime installed")
+    raise SystemExit("An iOS 18 iPhone simulator is required")
 ')"
 xcrun simctl boot "$simulator_id" || true
 xcrun simctl bootstatus "$simulator_id" -b
