@@ -30,6 +30,7 @@
 @property(nonatomic) BOOL throwOnCopy;
 @end
 @implementation CHSWidgetDescriptor
++ (BOOL)supportsSecureCoding { return YES; }
 - (instancetype)initWithCoder:(NSCoder *)coder {
     self = [super initWithCoder:coder];
     if (self) {

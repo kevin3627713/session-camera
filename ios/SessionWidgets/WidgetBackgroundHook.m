@@ -104,6 +104,7 @@ static NSKeyedUnarchiver *SCDecoder(NSData *data) {
     if (!data) return nil;
     NSError *error = nil;
     NSKeyedUnarchiver *coder = [[NSKeyedUnarchiver alloc] initForReadingFromData:data error:&error];
+    coder.requiresSecureCoding = YES;
     coder.decodingFailurePolicy = NSDecodingFailurePolicySetErrorAndReturn;
     return error ? nil : coder;
 }
@@ -125,7 +126,7 @@ static id SCTransformFetchResult(id original) {
         NSLog(@"[SessionWidgetHook] patched descriptor result");
         return rebuilt;
     } @catch (NSException *exception) {
-        NSLog(@"[SessionWidgetHook] retained original result (%@)", exception.name);
+        NSLog(@"[SessionWidgetHook] retained original result (%@: %@)", exception.name, exception.reason);
         return original;
     }
 }
