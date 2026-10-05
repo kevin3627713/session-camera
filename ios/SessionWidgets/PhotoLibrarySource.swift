@@ -39,7 +39,7 @@ enum PhotoLibrarySource {
         let pieces = id.split(separator: ":", maxSplits: 1).map(String.init)
         guard pieces.count == 2, status == .authorized else { return PhotoSourceEntity(id: id, name: "来源不可用，请检查照片权限") }
         let collection: PHCollection? = pieces[0] == "folder"
-            ? PHCollectionList.fetchCollectionLists(withLocalIdentifiers: [pieces[1]], options: nil).firstObject
+            ? foldersByID()[pieces[1]]
             : PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [pieces[1]], options: nil).firstObject
         return PhotoSourceEntity(id: id, name: (pieces[0] == "folder" ? "文件夹 · " : "相册 · ") + (collection?.localizedTitle ?? "已删除的来源"))
     }
@@ -57,8 +57,9 @@ enum PhotoLibrarySource {
         guard pieces.count == 2 else { return [] }
         let albums: [String]
         if pieces[0] == "folder" {
+            let folders = foldersByID()
             albums = PhotoFolderTraversal.albums(root: pieces[1]) { id in
-                guard let folder = PHCollectionList.fetchCollectionLists(withLocalIdentifiers: [id], options: nil).firstObject else { return [] }
+                guard let folder = folders[id] else { return [] }
                 var children: [(id: String, folder: Bool)] = []
                 PHCollection.fetchCollections(in: folder, options: nil).enumerateObjects { collection, _, _ in
                     children.append((collection.localIdentifier, collection is PHCollectionList))
@@ -74,6 +75,16 @@ enum PhotoLibrarySource {
             result.formUnion(identifiers(PHAsset.fetchAssets(in: album, options: options)))
         }
         return result.sorted()
+    }
+
+    private static func foldersByID() -> [String: PHCollectionList] {
+        // The identifier-only collection-list query throws "PHQuery requires
+        // a type" on iOS 18.6. Explicitly request folder collections instead.
+        var result: [String: PHCollectionList] = [:]
+        PHCollectionList.fetchCollectionLists(with: .folder, subtype: .any, options: nil).enumerateObjects { folder, _, _ in
+            result[folder.localIdentifier] = folder
+        }
+        return result
     }
 
     private static func identifiers(_ assets: PHFetchResult<PHAsset>) -> [String] {
