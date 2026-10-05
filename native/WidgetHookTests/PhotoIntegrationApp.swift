@@ -161,7 +161,7 @@ struct PhotoIntegrationApp: App {
             let partial = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
                                                       loadImage: { _, _, _ in loads += 1; return loads == 1 ? data : nil })
             try require(loads == 1 && partial.entries.count == 1 && partial.entries.allSatisfy { $0.imageData != nil },
-                        "Timeline loads and archives only the current photo rather than preloading six images")
+                        "Timeline loads and returns only the current photo rather than preloading six images")
             let next = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
                                           minutes: 60, now: now)[1].date
             try require(partial.policy == .after(next),

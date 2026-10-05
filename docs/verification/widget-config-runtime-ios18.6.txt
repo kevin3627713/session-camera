@@ -1,4 +1,4 @@
-2026-10-05 12:03:30.507 widget-runtime-probe[8659:34603] [SessionWidgetHook] installed iOS 18 descriptor hook
+2026-10-05 12:51:57.721 widget-runtime-probe[10273:38831] [SessionWidgetHook] installed iOS 18 descriptor hook
 Actual simulator OS: Version 18.6 (Build 22G86)
 _TtCC9WidgetKit24WidgetExtensionXPCServer14ExportedObject getAllCurrentDescriptorsWithCompletion:: v24@0:8@?16
 _TtC9WidgetKit21DescriptorFetchResult initWithCoder:: @24@0:8@16

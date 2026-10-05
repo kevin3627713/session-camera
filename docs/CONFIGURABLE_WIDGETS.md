@@ -63,6 +63,8 @@
 
 最终 0.3.1 IPA 为 6,632,637 字节，SHA-256：98ac7f90f757547b89586aec6c0f461e750945c5a54f852ff81984c5817ae9e3。主应用与扩展均为 0.3.1 / build 6，仍只有一个 arm64 扩展；元数据中的五种样式、配置字段与默认点击不打开均验证通过。
 
+0.3.2 候选版的完整构建 [37311849551](https://github.com/kevin3627713/session-camera/actions/runs/37311849551) 和 [照片专项 37311849274](https://github.com/kevin3627713/session-camera/actions/runs/37311849274) 已通过，生产代码提交为 e4443ba9a13b2281becdbe0a30b8b090d5727778。PhotoKit / 时间线宿主检查为 36 项，包含单图请求和下次边界、请求裁剪以及三种诊断分支。480×480 与 1080×1140 像素和细节检查继续通过。结果原样保存在 [widget-photos-ios18.6.json](verification/widget-photos-ios18.6.json)，没有执行系统时间线归档或桌面渲染。IPA 为 6,644,485 字节，SHA-256：d701fbc595cfbad5c89a1b233ed5679707a32adf904c237c5dca8c78d5bf0abe。
+
 真实测试暴露了 iOS 18.6 的按标识查询 PHCollectionList 接口异常。本版使用明确的 .folder 类型查询建立目录索引，递归时仅按选定 ID 读取。测试环境为合成数据宿主修正模拟器命令行授权写入的旧 auth_version；这段初始化只在 CI 脚本，不进入应用。主应用和扩展仍使用系统 PhotoKit 授权。
 
 IPA 检查要求 App Intents 元数据包含五种实际样式（加一个沿用预设的兼容默认项）、原有五个配置参数和默认关闭的照片排查参数、两个实体查询、点击默认 none、间隔默认 60 分钟，以及无操作意图 openAppWhenRun=false。分发包只有一个 arm64 扩展，版本与主应用一致，未包含测试宿主或合成相册。
