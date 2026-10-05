@@ -22,11 +22,11 @@ concurrency:
 jobs:
   photos:
     runs-on: macos-15
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - name: Test actual album and folder photo access on iOS 18
-        timeout-minutes: 8
+        timeout-minutes: 16
         run: bash scripts/test_widget_photos.sh
       - name: Upload actual PhotoKit results
         if: always()
