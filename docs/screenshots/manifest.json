@@ -1,8 +1,7 @@
 {
-  "source_commit": "f1e0982f18aebacaa06ebc6e9f48d13eddb91955",
-  "workflow_run": "https://github.com/kevin3627713/session-camera/actions/runs/37194854719",
+  "source_commit": "29b735aee3d85af04621ffa52f1112e99d24f654",
+  "workflow_run": "https://github.com/kevin3627713/session-camera/actions/runs/37322428530",
   "workflow_conclusion": "success",
-  "workflow_updated_at": "2026-10-04T10:32:43Z",
   "content": "Original procedurally drawn test still life; no user reference photos.",
   "devices": [
     {
@@ -23,7 +22,7 @@
         1170,
         2532
       ],
-      "sha256": "3a251c99660365187dda502fa59fe35de92ab0f99da8979dcd0da49878082fc5"
+      "sha256": "21b78c195c95e991410ac63280a6193f01f3e82f69ef8662f0159f81d4e27bce"
     },
     {
       "file": "regular-controls.png",
@@ -31,7 +30,7 @@
         1170,
         2532
       ],
-      "sha256": "8ea76e79fb675bbd5f293c004afdd27a53af95faef9a457e554c5f5d334539c7"
+      "sha256": "140db664b80824c9e63981f9166db30aea1639fda98bda4c28dc6a543a46cf0c"
     },
     {
       "file": "regular-video.png",
@@ -39,7 +38,7 @@
         1170,
         2532
       ],
-      "sha256": "6012a85efe1145757ccf9380b1b30e655f8a3b923534abf01b154740f0bfae76"
+      "sha256": "50065510c416ef2cd3212df04e9e0568974e744545a2b1d2ef387c30fbc5cf31"
     },
     {
       "file": "regular-gallery.png",
@@ -47,7 +46,7 @@
         1170,
         2532
       ],
-      "sha256": "bdde21caebc4e68eea4754e91e8b19ae0c0100488592ae99f97043e87a5dc182"
+      "sha256": "acd49143801d3e6d2108679c5e75116101f49b32d11011e3961d40c83948c4f3"
     },
     {
       "file": "regular-editor.png",
@@ -71,7 +70,7 @@
         1170,
         2532
       ],
-      "sha256": "b71e76f3d470ec5cd9a17826e8e89cd2c5d39226504efab54f22fe551d54f523"
+      "sha256": "5530188824195c8313dee92c004231fb2e673056f8d33169ec626d84bb6166a7"
     },
     {
       "file": "compact-camera.png",
@@ -103,7 +102,7 @@
         750,
         1334
       ],
-      "sha256": "02fa6da8cc06b40375db1d25f4c5441b5d0f566c76ffcd6e9328893b0e35b335"
+      "sha256": "818f7ad761e5ed9559985a0bec0d5c66467bc2340a5b217cc77549ff7ad5bc6b"
     },
     {
       "file": "compact-editor.png",
@@ -127,7 +126,7 @@
         750,
         1334
       ],
-      "sha256": "e4fea9f97e3d50c61c081d1b558d74eaf8a084e56ebe3d0cb6fcec295a14d3fe"
+      "sha256": "3939cabc34e89d95f4e2f620088fd0ba1941658c6758faf66ed953663eeed54b"
     }
   ]
 }

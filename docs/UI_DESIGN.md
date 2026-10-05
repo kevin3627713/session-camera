@@ -36,4 +36,4 @@
 
 在 macOS 运行 **bash scripts/capture_ui_preview.sh**，输出在 artifacts/ui/，包含 PNG、编译日志、设备和系统版本清单。模拟器截图可用于检查位置、间距、字体、裁剪与小屏遮挡；真机拍摄和 PhotoKit 行为仍按 [验收清单](ACCEPTANCE.md) 检查。
 
-截图脚本等待目标页面和图片渲染完成的标记，再留出界面动画完成时间；超时或不同页面生成重复截图都会使检查失败。[本次截图](screenshots) 来自 [运行 37194854719](https://github.com/kevin3627713/session-camera/actions/runs/37194854719)，来源提交、设备、运行地址和文件校验值记在 screenshots/manifest.json。
+截图脚本等待目标页面和图片渲染完成的标记，再留出界面动画完成时间；超时或不同页面生成重复截图都会使检查失败。[本次截图](screenshots) 来自 [运行 37322428530](https://github.com/kevin3627713/session-camera/actions/runs/37322428530)，来源提交、设备、运行地址和文件校验值记在 screenshots/manifest.json。

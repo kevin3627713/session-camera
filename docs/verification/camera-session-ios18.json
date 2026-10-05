@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "count": 4,
+  "tests": [
+    "testBackgroundPreservesPhotosInFlightCallbacksAndViewRecreation",
+    "testCameraEXIFOrientationIsAppliedExactlyOnceInEditedJPEG",
+    "testCropAfterRotationUsesRotatedCoordinateSpace",
+    "testRotationIsBakedIntoImagePixels"
+  ],
+  "simulator_family": "iOS 18",
+  "source_commit": "600f041f4ce7000815fd87986a94d0cb7d48902a",
+  "production_build_commit": "7f3ecf4144c32e9d5a32a4c6deffecfeb693ca31",
+  "workflow_run": "https://github.com/kevin3627713/session-camera/actions/runs/37327457989",
+  "log_sha256": "aef4f1e23b38b6a09ce74eccbff7e071a31db2f294db867c939dce26221b6d58",
+  "scope": "Hosted XCTest mounts the production camera view, posts UIKit background/resume notifications, receives synthetic photo callbacks, recreates the view with the same store, and verifies a newly constructed store starts empty. No physical camera or actual process-kill automation."
+}

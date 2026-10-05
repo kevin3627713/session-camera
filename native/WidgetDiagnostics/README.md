@@ -1,6 +1,6 @@
 # 可选照片组件诊断
 
-普通 Debug / Release 构建均不定义 `WIDGET_PHOTO_DIAGNOSTICS`，因此不包含照片排查参数、诊断枚举、64×64 测试图、诊断时间线、系统日志或 Mach 内存采样。生产源码只保留受条件编译保护的接入点。ImageIO 尺寸读取仍属于生产缓存校验，保留在 PhotoImageMetadata 中。
+普通 Debug / Release 构建均不定义 `WIDGET_PHOTO_DIAGNOSTICS`，因此不包含照片排查参数、诊断枚举、64×64 测试图、诊断时间线、照片流程诊断日志或 Mach 内存采样。生产源码只保留受条件编译保护的接入点。ImageIO 尺寸读取仍属于生产缓存校验，保留在 PhotoImageMetadata 中。
 
 ## 启用诊断 IPA
 

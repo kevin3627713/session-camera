@@ -79,7 +79,7 @@ bash scripts/package_unsigned_ipa.sh
 
 新增 [界面检查工作流](.github/workflows/ui-preview.yml)，独立模拟器程序复用实际相机、照片页与编辑页 Swift 源码，在 iOS 18 的 390×844 pt 参考尺寸与 iPhone SE 上生成相机、曝光控制、视频、照片、编辑、裁剪和本次网格截图。参见 [界面设计与检查方法](docs/UI_DESIGN.md)。演示照片仅用于单独的预览构建，发行 IPA 的结构验证会检查它们没有混入正式程序。用户提供的真机参考文件保留在本地 assets，已加入忽略规则。
 
-额外的 iPhone XCTest 宿主测试通过 workflow_dispatch 的 run_simulator 选项运行，验证实际相机视图的后台通知、晚到的拍摄回调、视图重建及新进程会话隔离；它与预览截图、共享渲染和 PhotoKit 源码宿主检查分别记录。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
+iOS 18 的四项 XCTest 宿主测试已在 [独立运行 37327457989](https://github.com/kevin3627713/session-camera/actions/runs/37327457989) 完整通过。可使用界面检查工作流的 native_tests 选项独立运行，或使用构建工作流的 run_simulator 选项，验证实际相机视图的后台通知、晚到的拍摄回调、视图重建及新进程会话隔离；它与预览截图、共享渲染和 PhotoKit 源码宿主检查分别记录。真机相机、照片权限、系统编辑确认、引导式访问与签名安装仍需在你的 iPhone 验收。
 
 ## 模板来源
 
