@@ -634,6 +634,11 @@ struct GuidedAccessGuide: View {
                     Text("建议选择「有限访问」：新拍照片仍可保存和编辑，也不会在借拍中显示你的其他照片。")
                     Text("仅添加照片权限可以保存新照片，但不能同步修改原记录。编辑时 iOS 可能要求你确认允许修改。")
                 }
+                Section("主屏小组件（实验）") {
+                    Text("长按主屏 → 编辑 → 添加小组件 → 借拍。提供「透明相机」「空白透明」「磨砂相机」及「普通背景」四种样式。")
+                    Text("透明样式尝试透出真实壁纸。可移动小组件或切换壁纸检查效果；若显示普通底色，表示当前系统没有应用透明设置。")
+                    Text("空白透明不显示内容，仍占主屏网格并可点按打开借拍。小组件的系统名称标签由主屏设置控制。")
+                }
             }.navigationTitle("安心借拍").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("开始拍摄") { dismiss() } } }
         }.preferredColorScheme(.dark)

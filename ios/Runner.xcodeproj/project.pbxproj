@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B10000000000000000000000 /* SessionWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000000 /* SessionWidgets.swift */; };
+		B10000000000000000000001 /* WidgetBackgroundHook.m in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* WidgetBackgroundHook.m */; };
+		B10000000000000000000002 /* SessionWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* SessionWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B10000000000000000000003 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* WidgetKit.framework */; };
+		B10000000000000000000004 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* SwiftUI.framework */; };
 		A10000000000000000000005 /* PhotoRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PhotoRendering.swift */; };
 		A10000000000000000000000 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000000 /* SessionStore.swift */; };
 		A10000000000000000000001 /* PhotoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* PhotoEditor.swift */; };
@@ -23,6 +28,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		B30000000000000000000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B70000000000000000000000;
+			remoteInfo = SessionWidgets;
+		};
 		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
@@ -33,6 +45,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		B40000000000000000000000 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (B10000000000000000000002 /* SessionWidgets.appex in Embed App Extensions */, );
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +67,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B20000000000000000000000 /* SessionWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionWidgets.swift; sourceTree = "<group>"; };
+		B20000000000000000000001 /* WidgetBackgroundHook.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WidgetBackgroundHook.m; sourceTree = "<group>"; };
+		B20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B20000000000000000000003 /* WidgetBackgroundHook.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WidgetBackgroundHook.h; sourceTree = "<group>"; };
+		B20000000000000000000004 /* SessionWidgets-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SessionWidgets-Bridging-Header.h"; sourceTree = "<group>"; };
+		B20000000000000000000005 /* Widget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Widget.xcconfig; sourceTree = "<group>"; };
+		B20000000000000000000006 /* SessionWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SessionWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000007 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		B20000000000000000000008 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A20000000000000000000005 /* PhotoRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoRendering.swift; path = ../../native/SessionCore/Sources/PhotoCore/PhotoRendering.swift; sourceTree = "<group>"; };
 		A20000000000000000000000 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStore.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* PhotoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoEditor.swift; path = PhotoEditor.swift; sourceTree = "<group>"; };
@@ -70,6 +100,12 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		B50000000000000000000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (B10000000000000000000003 /* WidgetKit.framework in Frameworks */, B10000000000000000000004 /* SwiftUI.framework in Frameworks */, );
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EB1CF9000F007C117D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -80,6 +116,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B60000000000000000000000 /* SessionWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000000 /* SessionWidgets.swift */,
+				B20000000000000000000001 /* WidgetBackgroundHook.m */,
+				B20000000000000000000003 /* WidgetBackgroundHook.h */,
+				B20000000000000000000004 /* SessionWidgets-Bridging-Header.h */,
+				B20000000000000000000002 /* Info.plist */,
+				B20000000000000000000005 /* Widget.xcconfig */,
+			);
+			path = SessionWidgets;
+			sourceTree = "<group>";
+		};
+		B60000000000000000000001 /* Widget Frameworks */ = {
+			isa = PBXGroup;
+			children = (B20000000000000000000007 /* WidgetKit.framework */, B20000000000000000000008 /* SwiftUI.framework */, );
+			name = "Widget Frameworks";
+			sourceTree = "<group>";
+		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -104,6 +159,8 @@
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
+				B60000000000000000000000 /* SessionWidgets */,
+				B60000000000000000000001 /* Widget Frameworks */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 			);
@@ -113,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
+				B20000000000000000000006 /* SessionWidgets.appex */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 			);
 			name = Products;
@@ -142,6 +200,21 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		B70000000000000000000000 /* SessionWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BC0000000000000000000000 /* Build configuration list for PBXNativeTarget "SessionWidgets" */;
+			buildPhases = (
+				B90000000000000000000000 /* Sources */,
+				B50000000000000000000000 /* Frameworks */,
+				B80000000000000000000000 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = SessionWidgets;
+			productName = SessionWidgets;
+			productReference = B20000000000000000000006 /* SessionWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
@@ -168,11 +241,13 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				B40000000000000000000000 /* Embed App Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BA0000000000000000000000 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
@@ -197,6 +272,9 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
+					B70000000000000000000000 = {
+						CreatedOnToolsVersion = 16.0;
+					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -214,11 +292,18 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				B70000000000000000000000 /* SessionWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		B80000000000000000000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807F294A63A400263BE5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -274,6 +359,12 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		B90000000000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (B10000000000000000000000 /* SessionWidgets.swift in Sources */, B10000000000000000000001 /* WidgetBackgroundHook.m in Sources */, );
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807D294A63A400263BE5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -300,6 +391,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		BA0000000000000000000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B70000000000000000000000 /* SessionWidgets */;
+			targetProxy = B30000000000000000000000 /* PBXContainerItemProxy */;
+		};
 		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
@@ -327,6 +423,76 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		BB0000000000000000000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000005 /* Widget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SessionWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevin3627713.sessioncamera.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SessionWidgets/SessionWidgets-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BB0000000000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000005 /* Widget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SessionWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevin3627713.sessioncamera.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SessionWidgets/SessionWidgets-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BB0000000000000000000002 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000005 /* Widget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SessionWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevin3627713.sessioncamera.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SessionWidgets/SessionWidgets-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 		249021D3217E4FDB00AE95B9 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -604,6 +770,12 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		BC0000000000000000000000 /* Build configuration list for PBXNativeTarget "SessionWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (BB0000000000000000000000 /* Debug */, BB0000000000000000000001 /* Release */, BB0000000000000000000002 /* Profile */, );
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -1,7 +1,7 @@
 name: session_camera
 description: Native iOS camera with an isolated gallery for each foreground session.
 publish_to: "none"
-version: 0.2.0+3
+version: 0.2.1+4
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

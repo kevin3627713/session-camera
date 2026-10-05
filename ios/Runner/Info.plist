@@ -24,6 +24,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key><string>com.kevin3627713.sessioncamera</string>
+			<key>CFBundleURLSchemes</key><array><string>sessioncamera</string></array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>借拍使用相机拍摄本次照片和视频。</string>
 	<key>NSMicrophoneUsageDescription</key>

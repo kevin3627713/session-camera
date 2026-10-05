@@ -27,6 +27,17 @@ import SwiftUI
     return result
   }
 
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    // The native camera already opens on launch/resume. Do not route the
+    // widget URL into Flutter's single-screen shell as a named route.
+    if url.scheme == "sessioncamera", url.host == "camera" { return true }
+    return super.application(app, open: url, options: options)
+  }
+
   override func applicationWillResignActive(_ application: UIApplication) {
     // A synchronous opaque cover protects app-switcher snapshots, including an
     // editor or a full-screen video. Inactivity alone does not reset the session.

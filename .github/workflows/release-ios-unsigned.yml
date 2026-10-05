@@ -2,7 +2,7 @@ name: Build unsigned iOS IPA
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'experiment/transparent-widgets-ios18']
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -26,6 +26,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Test session isolation and native photo rendering
         run: swift test --package-path native/SessionCore
+      - name: Test private widget descriptor mutation and fallback
+        run: bash scripts/test_widget_descriptor_hook.sh
       - name: Setup pinned Flutter
         run: |
           git clone --depth 1 --branch 3.35.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
@@ -40,6 +42,19 @@ jobs:
         run: flutter test
       - name: Build iPhone application without a certificate
         run: flutter build ios --release --no-codesign
+      - name: Compile widget extension for iPhone simulator
+        run: |
+          xcodebuild -project ios/Runner.xcodeproj -target SessionWidgets \
+            -configuration Debug -sdk iphonesimulator \
+            SYMROOT="$RUNNER_TEMP/widget-simulator" CODE_SIGNING_ALLOWED=NO \
+            > artifacts/widget-simulator-compile.log 2>&1 || {
+              tail -n 100 artifacts/widget-simulator-compile.log
+              exit 1
+            }
+          tail -n 8 artifacts/widget-simulator-compile.log
+      - name: Inspect actual iOS 18 private widget runtime
+        timeout-minutes: 6
+        run: bash scripts/probe_widget_runtime.sh
       - name: Package and validate unsigned IPA
         run: bash scripts/package_unsigned_ipa.sh
       - name: Test photo editing on iPhone simulator

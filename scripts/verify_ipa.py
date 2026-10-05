@@ -21,5 +21,21 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert b"CameraUIPreview" not in executable, "Simulator host leaked into release"
     assert "Payload/Runner.app/Frameworks/App.framework/App" in archive.namelist()
     assert "Payload/Runner.app/Frameworks/Flutter.framework/Flutter" in archive.namelist()
+    assert info.get("FlutterDeepLinkingEnabled") is False
+    assert any("sessioncamera" in entry.get("CFBundleURLSchemes", []) for entry in info.get("CFBundleURLTypes", []))
+    extension_root = "Payload/Runner.app/PlugIns/SessionWidgets.appex/"
+    widget_info = plistlib.loads(archive.read(extension_root + "Info.plist"))
+    assert widget_info["CFBundleIdentifier"] == info["CFBundleIdentifier"] + ".widgets"
+    assert widget_info["NSExtension"]["NSExtensionPointIdentifier"] == "com.apple.widgetkit-extension"
+    assert widget_info["CFBundleShortVersionString"] == info["CFBundleShortVersionString"]
+    assert widget_info["CFBundleVersion"] == info["CFBundleVersion"]
+    assert widget_info["MinimumOSVersion"] == "18.0"
+    widget_executable = archive.read(extension_root + widget_info["CFBundleExecutable"])
+    assert widget_executable[:4] == bytes.fromhex("cffaedfe"), "Widget executable must be Mach-O 64-bit"
+    assert int.from_bytes(widget_executable[4:8], "little") == 0x0100000C, "Widget must contain device arm64 code"
+    for selector in (b"getAllCurrentDescriptorsWithCompletion:", b"setTransparent:", b"setPreferredBackgroundStyle:"):
+        assert selector in widget_executable, f"Missing widget hook selector: {selector!r}"
+        assert selector not in executable, "Widget hook leaked into camera process"
+    assert len([name for name in archive.namelist() if name.startswith("Payload/Runner.app/PlugIns/") and name.endswith(".appex/Info.plist")]) == 1
     assert archive.testzip() is None
-print("IPA verified: correct bundle, executable, Flutter frameworks and permissions.")
+print("IPA verified: camera + one arm64 WidgetKit extension, matching versions, isolated hook, URL, permissions and frameworks.")

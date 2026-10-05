@@ -6,6 +6,8 @@
 
 Public repository: https://github.com/kevin3627713/session-camera
 
+**当前分支：iOS 18 透明小组件实验。** 基于 v0.2.0，在同一个借拍 IPA 中加入透明相机、空白透明、磨砂和普通背景对照，共用一个 WidgetKit 扩展。更新原应用时请保留扩展；通常增加一个签名 App ID。iOS 18.7.8 真机透明效果仍需验证。安装、方法来源与验收见 [透明小组件说明](docs/TRANSPARENT_WIDGETS.md)。正式 main 分支保持原版本。
+
 ## 界面预览
 
 下图是复用正式 Swift 界面的 iOS 18 模拟器截图，取景内容是专门绘制的测试图。用户提供的真机照片和截图只保留在本地参考目录。
