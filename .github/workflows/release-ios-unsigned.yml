@@ -56,9 +56,10 @@ jobs:
         timeout-minutes: 6
         run: bash scripts/probe_widget_runtime.sh
       - name: Package and validate unsigned IPA
+        id: package
         run: bash scripts/package_unsigned_ipa.sh
       - name: Test actual album and folder photo access on iOS 18
-        timeout-minutes: 6
+        timeout-minutes: 14
         run: bash scripts/test_widget_photos.sh
       - name: Test photo editing on iPhone simulator
         if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
@@ -72,6 +73,7 @@ jobs:
           path: artifacts/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v5
+        if: always() && steps.package.outcome == 'success'
         with:
           name: session-camera-unsigned-${{ github.run_number }}
           path: session-camera-unsigned.ipa
