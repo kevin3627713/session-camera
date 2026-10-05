@@ -57,6 +57,9 @@ jobs:
         run: bash scripts/probe_widget_runtime.sh
       - name: Package and validate unsigned IPA
         run: bash scripts/package_unsigned_ipa.sh
+      - name: Test actual album and folder photo access on iOS 18
+        timeout-minutes: 6
+        run: bash scripts/test_widget_photos.sh
       - name: Test photo editing on iPhone simulator
         if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
         timeout-minutes: 15

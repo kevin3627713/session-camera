@@ -74,7 +74,7 @@ struct CameraWidgetView: View {
     var body: some View {
         Group {
             if entry.tapBehavior == .camera {
-                Button(intent: OpenBorrowCamera()) { content }
+                Link(destination: URL(string: "sessioncamera://camera")!) { content }
             } else {
                 // A full-size interactive control consumes the tap. Merely
                 // removing widgetURL would still open the containing app.

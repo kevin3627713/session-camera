@@ -93,10 +93,3 @@ struct KeepWidgetOnHomeScreen: AppIntent {
     static var openAppWhenRun: Bool = false
     func perform() async throws -> some IntentResult { .result() }
 }
-
-struct OpenBorrowCamera: AppIntent {
-    static var title: LocalizedStringResource = "打开借拍"
-    static var isDiscoverable: Bool = false
-    static var openAppWhenRun: Bool = true
-    func perform() async throws -> some IntentResult { .result() }
-}
