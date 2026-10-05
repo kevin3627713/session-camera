@@ -207,7 +207,7 @@ enum PhotoImageCache {
         let manager = FileManager.default
         do {
             try manager.createDirectory(at: directory, withIntermediateDirectories: true)
-            try data.write(to: directory.appendingPathComponent(key + ".jpg"), options: [.atomic, .completeUntilFirstUserAuthentication])
+            try data.write(to: directory.appendingPathComponent(key + ".jpg"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             let files = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey])
             let records = files.compactMap { url -> (URL, Date, Int)? in
                 guard let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]) else { return nil }
