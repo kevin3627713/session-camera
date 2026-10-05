@@ -70,26 +70,38 @@ private struct CameraWidgetView: View {
     }
 }
 
-private struct CameraWidget: Widget {
-    let style: BackgroundStyle
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: style.kind, provider: CameraProvider()) { _ in
-            CameraWidgetView(style: style)
-        }
-        .configurationDisplayName(style.name)
-        .description(style.description)
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
-        .containerBackgroundRemovable(true)
+private func cameraConfiguration(_ style: BackgroundStyle) -> some WidgetConfiguration {
+    StaticConfiguration(kind: style.kind, provider: CameraProvider()) { _ in
+        CameraWidgetView(style: style)
     }
+    .configurationDisplayName(style.name)
+    .description(style.description)
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    .containerBackgroundRemovable(true)
+}
+
+// Widget requires init(). Each kind has a distinct zero-argument type so
+// WidgetKit can reconstruct it without losing a parameterized style.
+private struct ClearCameraWidget: Widget {
+    var body: some WidgetConfiguration { cameraConfiguration(.clear) }
+}
+private struct BlankCameraWidget: Widget {
+    var body: some WidgetConfiguration { cameraConfiguration(.blank) }
+}
+private struct BlurCameraWidget: Widget {
+    var body: some WidgetConfiguration { cameraConfiguration(.blur) }
+}
+private struct StandardCameraWidget: Widget {
+    var body: some WidgetConfiguration { cameraConfiguration(.standard) }
 }
 
 @main
 struct SessionCameraWidgets: WidgetBundle {
     init() { SCInstallWidgetBackgroundHook() }
     var body: some Widget {
-        CameraWidget(style: .clear)
-        CameraWidget(style: .blank)
-        CameraWidget(style: .blur)
-        CameraWidget(style: .standard)
+        ClearCameraWidget()
+        BlankCameraWidget()
+        BlurCameraWidget()
+        StandardCameraWidget()
     }
 }
