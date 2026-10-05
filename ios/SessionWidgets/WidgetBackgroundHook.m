@@ -10,6 +10,7 @@
 static NSString *const SCClearKind = @"SessionCamera.Clear";
 static NSString *const SCBlankKind = @"SessionCamera.Blank";
 static NSString *const SCBlurKind = @"SessionCamera.Blur";
+static NSString *const SCStandardKind = @"SessionCamera.Standard";
 static void (*SCOriginalFetch)(id, SEL, void (^)(id));
 
 static BOOL SCSetterAvailable(id object, SEL selector, BOOL booleanArgument) {
@@ -32,23 +33,23 @@ static id SCPatchDescriptor(id descriptor) {
     if (kindType[0] != '@') return nil;
     id kind = ((id (*)(id, SEL))objc_msgSend)(descriptor, kindSelector);
     if (![kind isKindOfClass:NSString.class]) return nil;
-    BOOL clear = [kind isEqual:SCClearKind] || [kind isEqual:SCBlankKind];
-    BOOL blur = [kind isEqual:SCBlurKind];
-    if (!clear && !blur) return nil;
+    BOOL ours = [kind isEqual:SCClearKind] || [kind isEqual:SCBlankKind] ||
+                [kind isEqual:SCBlurKind] || [kind isEqual:SCStandardKind];
+    if (!ours) return nil;
     if (![descriptor respondsToSelector:@selector(mutableCopyWithZone:)]) return nil;
     id mutable = [descriptor mutableCopy];
     SEL removable = NSSelectorFromString(@"setBackgroundRemovable:");
     SEL transparent = NSSelectorFromString(@"setTransparent:");
     SEL style = NSSelectorFromString(@"setPreferredBackgroundStyle:");
-    SEL vibrant = NSSelectorFromString(@"setSupportsVibrantContent:");
     if (!SCSetterAvailable(mutable, removable, YES) ||
         !SCSetterAvailable(mutable, transparent, YES) ||
-        !SCSetterAvailable(mutable, style, NO) ||
-        (blur && !SCSetterAvailable(mutable, vibrant, YES))) return nil;
+        !SCSetterAvailable(mutable, style, NO)) return nil;
     ((void (*)(id, SEL, BOOL))objc_msgSend)(mutable, removable, YES);
     ((void (*)(id, SEL, BOOL))objc_msgSend)(mutable, transparent, YES);
-    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(mutable, style, blur ? 2 : 1);
-    if (blur) ((void (*)(id, SEL, BOOL))objc_msgSend)(mutable, vibrant, YES);
+    // Descriptors are per kind, not per placed instance. Use a clear host for
+    // every preset; each configured view supplies its own color/material/photo.
+    // A global blur descriptor would prevent another instance becoming clear.
+    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(mutable, style, 1);
     return mutable;
 }
 

@@ -1,100 +1,157 @@
 import SwiftUI
 import WidgetKit
+import Photos
 
-private struct CameraEntry: TimelineEntry {
+struct CameraWidgetEntry: TimelineEntry {
     let date: Date
+    let style: CameraWidgetStyle
+    let tapBehavior: WidgetTapBehavior
+    var imageData: Data?
+    var message: String?
 }
 
-private struct CameraProvider: TimelineProvider {
-    func placeholder(in context: Context) -> CameraEntry { CameraEntry(date: Date()) }
-    func getSnapshot(in context: Context, completion: @escaping (CameraEntry) -> Void) {
-        completion(CameraEntry(date: Date()))
+struct CameraWidgetProvider: AppIntentTimelineProvider {
+    let preset: CameraWidgetStyle
+    func placeholder(in context: Context) -> CameraWidgetEntry {
+        CameraWidgetEntry(date: Date(), style: preset, tapBehavior: .none)
     }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<CameraEntry>) -> Void) {
-        completion(Timeline(entries: [CameraEntry(date: Date())], policy: .never))
+    func snapshot(for configuration: CameraWidgetConfiguration, in context: Context) async -> CameraWidgetEntry {
+        if context.isPreview {
+            return CameraWidgetEntry(date: Date(), style: resolved(configuration), tapBehavior: .none,
+                                     message: "长按 → 编辑小组件，选择照片来源")
+        }
+        return await timeline(for: configuration, in: context).entries[0]
+    }
+    private func resolved(_ configuration: CameraWidgetConfiguration) -> CameraWidgetStyle {
+        configuration.style == .preset ? preset : configuration.style
+    }
+    func timeline(for configuration: CameraWidgetConfiguration, in context: Context) async -> Timeline<CameraWidgetEntry> {
+        let now = Date(), style = resolved(configuration)
+        func entry(_ message: String) -> CameraWidgetEntry {
+            CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior, message: message)
+        }
+        guard style == .photos else {
+            return Timeline(entries: [CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior)], policy: .never)
+        }
+        guard PhotoLibrarySource.status == .authorized || PhotoLibrarySource.status == .limited else {
+            return Timeline(entries: [entry("请在借拍的机主设置中开启照片权限")], policy: .after(now.addingTimeInterval(900)))
+        }
+        guard let source = configuration.source else {
+            return Timeline(entries: [entry("长按 → 编辑小组件，选择相册或文件夹")], policy: .never)
+        }
+        guard let identity = configuration.identity, !identity.id.isEmpty else {
+            return Timeline(entries: [entry("请在编辑小组件中选择一个独立编号")], policy: .never)
+        }
+        guard (5...10_080).contains(configuration.intervalMinutes) else {
+            return Timeline(entries: [entry("更换间隔请填写 5～10080 分钟")], policy: .never)
+        }
+        let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
+        guard !assets.isEmpty else {
+            let message = PhotoLibrarySource.status == .limited && source.id != PhotoLibrarySource.accessibleID
+                ? "读取相册/文件夹需要完整照片访问；有限权限可选已授权照片"
+                : "来源为空、已删除或没有可访问的照片"
+            return Timeline(entries: [entry(message)], policy: .after(now.addingTimeInterval(900)))
+        }
+        let picks = PhotoSchedule.plan(assetIDs: assets, instanceID: identity.id, sourceID: source.id,
+                                      minutes: configuration.intervalMinutes, now: now)
+        var data: [String: Data] = [:], entries: [CameraWidgetEntry] = []
+        let deadline = Date().addingTimeInterval(16)
+        for pick in picks {
+            if data[pick.assetID] == nil && Date() < deadline {
+                data[pick.assetID] = await PhotoLibrarySource.imageData(assetID: pick.assetID, size: context.displaySize)
+            }
+            entries.append(CameraWidgetEntry(date: pick.date, style: .photos, tapBehavior: configuration.tapBehavior,
+                imageData: data[pick.assetID], message: "照片暂不可用，请联网后刷新小组件"))
+        }
+        return Timeline(entries: entries, policy: .atEnd)
     }
 }
 
-private enum BackgroundStyle {
-    case standard, clear, blur, blank
-    var kind: String {
-        switch self {
-        case .standard: return "SessionCamera.Standard"
-        case .clear: return "SessionCamera.Clear"
-        case .blur: return "SessionCamera.Blur"
-        case .blank: return "SessionCamera.Blank"
-        }
-    }
-    var name: String {
-        switch self {
-        case .standard: return "普通背景"
-        case .clear: return "透明相机"
-        case .blur: return "磨砂相机"
-        case .blank: return "空白透明"
-        }
-    }
-    var description: String {
-        switch self {
-        case .standard: return "普通系统背景，作为透明效果的对照。轻点打开借拍。"
-        case .clear: return "尝试透出真实主屏幕壁纸，轻点打开借拍。适用于 iOS 18。"
-        case .blur: return "尝试使用系统模糊背景，轻点打开借拍。适用于 iOS 18。"
-        case .blank: return "留出透明网格区域，不显示前景内容；轻点仍可打开借拍。"
-        }
-    }
-}
-
-private struct CameraWidgetView: View {
-    let style: BackgroundStyle
+struct CameraWidgetView: View {
+    let entry: CameraWidgetEntry
     @Environment(\.widgetFamily) private var family
+
     var body: some View {
         Group {
-            if style == .blank {
-                Color.clear
+            if entry.tapBehavior == .camera {
+                Button(intent: OpenBorrowCamera()) { content }
             } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "camera")
-                        .font(.system(size: family == .systemSmall ? 38 : 48, weight: .light))
-                    Text("借拍").font(.system(size: 19, weight: .semibold))
-                    if family != .systemSmall {
-                        Text("轻点进入相机").font(.system(size: 13))
-                    }
-                }
-                .foregroundStyle(style == .standard ? Color.primary : .white)
-                .shadow(color: style == .standard ? .clear : .black.opacity(0.45), radius: 2, y: 1)
+                // A full-size interactive control consumes the tap. Merely
+                // removing widgetURL would still open the containing app.
+                Button(intent: KeepWidgetOnHomeScreen()) { content }
             }
         }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .widget)
-        .widgetURL(URL(string: "sessioncamera://camera"))
-        .accessibilityLabel(style == .blank ? "打开借拍相机" : "借拍，\(style.name)")
+        .accessibilityLabel(entry.tapBehavior == .camera ? "打开借拍" : "借拍小组件，不打开应用")
+    }
+
+    private var content: some View {
+        GeometryReader { geometry in
+            ZStack {
+                switch entry.style {
+                case .standard: Color(uiColor: .secondarySystemBackground)
+                case .blur: Rectangle().fill(.regularMaterial)
+                case .photos:
+                    if let data = entry.imageData, let image = UIImage(data: data) {
+                        Image(uiImage: image).resizable().widgetAccentedRenderingMode(.fullColor).scaledToFill()
+                            .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+                    } else {
+                        Color(uiColor: .secondarySystemBackground)
+                        VStack(spacing: 12) {
+                            Image(systemName: "photo.on.rectangle").font(.system(size: 30, weight: .light))
+                            Text(entry.message ?? "选择相册或文件夹").font(.system(size: 13)).multilineTextAlignment(.center)
+                        }.foregroundStyle(.primary).padding(18)
+                    }
+                default: Color.clear
+                }
+                if entry.style != .blank && entry.style != .photos {
+                    VStack(spacing: 12) {
+                        Image(systemName: "camera").font(.system(size: family == .systemSmall ? 38 : 48, weight: .light))
+                        Text("借拍").font(.system(size: 19, weight: .semibold))
+                        if family != .systemSmall { Text("长按可编辑样式").font(.system(size: 13)) }
+                    }
+                    .foregroundStyle(entry.style == .standard ? Color.primary : .white)
+                    .shadow(color: entry.style == .standard ? .clear : .black.opacity(0.45), radius: 2, y: 1)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .contentShape(Rectangle())
+            .clipped()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
     }
 }
 
-private func cameraConfiguration(_ style: BackgroundStyle) -> some WidgetConfiguration {
-    StaticConfiguration(kind: style.kind, provider: CameraProvider()) { _ in
-        CameraWidgetView(style: style)
+private func cameraConfiguration(kind: String, preset: CameraWidgetStyle, name: String) -> some WidgetConfiguration {
+    AppIntentConfiguration(kind: kind, intent: CameraWidgetConfiguration.self, provider: CameraWidgetProvider(preset: preset)) { entry in
+        CameraWidgetView(entry: entry)
     }
-    .configurationDisplayName(style.name)
-    .description(style.description)
+    .configurationDisplayName(name)
+    .description("长按 → 编辑小组件，可切换五种样式；照片支持相册/文件夹、独立编号和更换周期。默认点击不打开应用。")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     .containerBackgroundRemovable(true)
+    .contentMarginsDisabled()
+    .promptsForUserConfiguration()
 }
 
-// Widget requires init(). Each kind has a distinct zero-argument type so
-// WidgetKit can reconstruct it without losing a parameterized style.
+// Keep the old kinds so existing installations can gain editing in place.
 private struct ClearCameraWidget: Widget {
-    var body: some WidgetConfiguration { cameraConfiguration(.clear) }
+    var body: some WidgetConfiguration { cameraConfiguration(kind: "SessionCamera.Clear", preset: .clear, name: "借拍 · 可编辑样式") }
 }
 private struct BlankCameraWidget: Widget {
-    var body: some WidgetConfiguration { cameraConfiguration(.blank) }
+    var body: some WidgetConfiguration { cameraConfiguration(kind: "SessionCamera.Blank", preset: .blank, name: "空白透明 · 可编辑样式") }
 }
 private struct BlurCameraWidget: Widget {
-    var body: some WidgetConfiguration { cameraConfiguration(.blur) }
+    var body: some WidgetConfiguration { cameraConfiguration(kind: "SessionCamera.Blur", preset: .blur, name: "磨砂相机 · 可编辑样式") }
 }
 private struct StandardCameraWidget: Widget {
-    var body: some WidgetConfiguration { cameraConfiguration(.standard) }
+    var body: some WidgetConfiguration { cameraConfiguration(kind: "SessionCamera.Standard", preset: .standard, name: "普通背景 · 可编辑样式") }
 }
 
+#if !WIDGET_INTEGRATION_TEST
 @main
 struct SessionCameraWidgets: WidgetBundle {
     init() { SCInstallWidgetBackgroundHook() }
@@ -105,3 +162,4 @@ struct SessionCameraWidgets: WidgetBundle {
         StandardCameraWidget()
     }
 }
+#endif

@@ -7,6 +7,8 @@ let package = Package(
     products: [.library(name: "SessionCore", targets: ["SessionCore"]),
                .library(name: "PhotoCore", targets: ["PhotoCore"])],
     targets: [
+        .target(name: "WidgetCore"),
+        .testTarget(name: "WidgetCoreTests", dependencies: ["WidgetCore"]),
         .target(name: "SessionCore"),
         .testTarget(name: "SessionCoreTests", dependencies: ["SessionCore"]),
         .target(name: "PhotoCore"),

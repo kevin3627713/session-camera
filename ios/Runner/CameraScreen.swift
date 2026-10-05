@@ -1,6 +1,9 @@
 import AVFoundation
 import AVKit
 import SwiftUI
+import Photos
+import LocalAuthentication
+import WidgetKit
 
 struct CameraScreen: View {
     @StateObject private var engine = CameraEngine()
@@ -607,6 +610,7 @@ struct GuidedAccessGuide: View {
     let isEnabled: Bool
     @Binding var remind: Bool
     @Environment(\.dismiss) private var dismiss
+    @State private var photoWidgetSettings = false
 
     var body: some View {
         NavigationStack {
@@ -635,13 +639,87 @@ struct GuidedAccessGuide: View {
                     Text("仅添加照片权限可以保存新照片，但不能同步修改原记录。编辑时 iOS 可能要求你确认允许修改。")
                 }
                 Section("主屏小组件（实验）") {
-                    Text("长按主屏 → 编辑 → 添加小组件 → 借拍。提供「透明相机」「空白透明」「磨砂相机」及「普通背景」四种样式。")
+                    Text("长按小组件 → 编辑小组件，即可切换透明、空白、磨砂、普通背景和随机相册照片，不需要删除重放。旧版四种预设均保留并可编辑。")
+                    Text("默认点击不打开应用；可以在小组件设置中改成打开借拍。照片样式可分别选择相册/文件夹、更换周期和独立编号。")
                     Text("透明样式尝试透出真实壁纸。可移动小组件或切换壁纸检查效果；若显示普通底色，表示当前系统没有应用透明设置。")
-                    Text("空白透明不显示内容，仍占主屏网格并可点按打开借拍。小组件的系统名称标签由主屏设置控制。")
+                    Text("空白透明仍占主屏网格。小组件的系统名称标签由主屏设置控制。")
+                    Button("照片小组件权限与刷新（机主验证）") { photoWidgetSettings = true }
                 }
             }.navigationTitle("安心借拍").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("开始拍摄") { dismiss() } } }
         }.preferredColorScheme(.dark)
+            .sheet(isPresented: $photoWidgetSettings) { PhotoWidgetOwnerSettings() }
+    }
+}
+
+private struct PhotoWidgetOwnerSettings: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var unlocked = false
+    @State private var busy = false
+    @State private var message: String?
+    @State private var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !unlocked {
+                    Section {
+                        Label("照片小组件设置需要机主验证", systemImage: "lock.fill")
+                        Text("用 Face ID、Touch ID 或设备密码验证后，才可管理照片访问。")
+                        Button(busy ? "正在验证…" : "验证机主身份") { Task { await authenticate() } }.disabled(busy)
+                        if let message { Text(message).foregroundStyle(.secondary) }
+                    }
+                } else {
+                    Section("照片访问") {
+                        Text(status == .authorized ? "当前为完整照片访问，可选择相册和文件夹。" :
+                             status == .limited ? "当前为有限照片访问，小组件可选择已授权照片；无法读取相册/文件夹目录。" : "尚未允许读取照片。")
+                        Text("使用相机仍只需有限权限。要按相册或文件夹随机展示，请在系统设置中将借拍的照片访问改成完整访问。")
+                        if status == .notDetermined {
+                            Button("申请照片访问") {
+                                PHPhotoLibrary.requestAuthorization(for: .readWrite) { value in
+                                    DispatchQueue.main.async { status = value; WidgetCenter.shared.reloadAllTimelines() }
+                                }
+                            }
+                        }
+                        Button("打开借拍的系统权限设置") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    }
+                    Section("每个小组件分别设置") {
+                        Text("回到主屏幕，长按小组件 → 编辑小组件 → 样式选择随机相册照片。选择来源、5～10080 分钟的周期，以及这个小组件自己的独立编号。")
+                        Text("编号会自动提供。复制小组件或需要独立随机序列时，选择一个新编号；来源相同的两个组件偶尔抽到同一张照片属于正常随机结果。")
+                        Text("系统控制刷新时间，可能延后；照片在 iCloud 中且暂时无法下载时会显示提示。")
+                        Button("刷新照片小组件") {
+                            status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                            WidgetCenter.shared.reloadAllTimelines()
+                            message = "已请求系统刷新小组件。"
+                        }
+                        if let message { Text(message).foregroundStyle(.secondary) }
+                    }
+                    Section("显示范围") {
+                        Text("所选照片会显示在主屏幕。这个功能只在小组件读取来源，不会把已有照片加入借拍的本次相册。默认点击小组件不打开任何应用。")
+                    }
+                }
+            }.navigationTitle("照片小组件").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+        }
+        .task { await authenticate() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in unlocked = false }
+    }
+
+    @MainActor private func authenticate() async {
+        guard !busy, !unlocked else { return }
+        busy = true
+        defer { busy = false }
+        let context = LAContext()
+        do {
+            unlocked = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "管理借拍照片小组件的访问权限")
+            status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            message = nil
+        } catch {
+            unlocked = false
+            message = "未完成机主验证，可以稍后重试。"
+        }
     }
 }
 

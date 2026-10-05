@@ -10,6 +10,7 @@
     <key>CFBundlePackageType</key><string>XPC!</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSPhotoLibraryUsageDescription</key><string>根据你在每个小组件里选择的相册或文件夹，随机展示其中的照片；有限权限只展示已授权照片。</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>

@@ -12,6 +12,7 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         "NSMicrophoneUsageDescription",
         "NSPhotoLibraryUsageDescription",
         "NSPhotoLibraryAddUsageDescription",
+        "NSFaceIDUsageDescription",
     ):
         assert info.get(key), f"Missing permission text: {key}"
     assert info.get("PHPhotoLibraryPreventAutomaticLimitedAccessAlert") is True
@@ -30,7 +31,13 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert widget_info["CFBundleShortVersionString"] == info["CFBundleShortVersionString"]
     assert widget_info["CFBundleVersion"] == info["CFBundleVersion"]
     assert widget_info["MinimumOSVersion"] == "18.0"
+    assert widget_info.get("NSPhotoLibraryUsageDescription")
     widget_executable = archive.read(extension_root + widget_info["CFBundleExecutable"])
+    for kind in (b"SessionCamera.Clear", b"SessionCamera.Blank", b"SessionCamera.Blur", b"SessionCamera.Standard"):
+        assert kind in widget_executable, f"Missing legacy-compatible widget kind: {kind!r}"
+    metadata = [name for name in archive.namelist() if name.startswith(extension_root + "Metadata.appintents/") and name.endswith(".actionsdata")]
+    assert metadata, "Missing App Intents metadata; widget editing/actions will not work"
+    assert b"FakeFetchResult" not in widget_executable
     assert widget_executable[:4] == bytes.fromhex("cffaedfe"), "Widget executable must be Mach-O 64-bit"
     assert int.from_bytes(widget_executable[4:8], "little") == 0x0100000C, "Widget must contain device arm64 code"
     for selector in (b"getAllCurrentDescriptorsWithCompletion:", b"setTransparent:", b"setPreferredBackgroundStyle:"):

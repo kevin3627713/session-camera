@@ -152,8 +152,8 @@ int main(void) {
         CHSWidgetDescriptor *clear = output.widgets[0], *blank = output.widgets[1], *blur = output.widgets[2], *standard = output.widgets[3];
         Check(clear.transparent && clear.backgroundRemovable && clear.preferredBackgroundStyle == 1, @"clear background descriptor");
         Check(blank.transparent && blank.preferredBackgroundStyle == 1, @"blank background descriptor");
-        Check(blur.transparent && blur.preferredBackgroundStyle == 2 && blur.supportsVibrantContent, @"blur and vibrancy descriptor");
-        Check(!standard.transparent && standard.preferredBackgroundStyle == 0, @"ordinary widget is not patched");
+        Check(blur.transparent && blur.preferredBackgroundStyle == 1, @"blur preset uses a clear host for per-instance editing");
+        Check(standard.transparent && standard.preferredBackgroundStyle == 1, @"standard preset can switch to a transparent instance");
         Check([[(CHSBaseDescriptor *)output.activities[0] kind] isEqual:@"activity"] && [[(CHSControlDescriptor *)output.controls[0] kind] isEqual:@"control"], @"activity and control arrays preserved");
         Check(![(CHSWidgetDescriptor *)input.widgets[0] transparent], @"input descriptor stays immutable");
         FakeFetchResult *unknown = Packet(@[Widget(@"AnotherApp.Clear")]);
