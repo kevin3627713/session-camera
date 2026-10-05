@@ -109,10 +109,23 @@ static NSKeyedUnarchiver *SCDecoder(NSData *data) {
     return error ? nil : coder;
 }
 
+static BOOL SCRecognizesFields(NSData *data) {
+    if (!data) return NO;
+    NSDictionary *archive = [NSPropertyListSerialization propertyListWithData:data options:0 format:NULL error:NULL];
+    if (![archive isKindOfClass:NSDictionary.class]) return NO;
+    NSDictionary *fields = archive[@"$top"];
+    if (![fields isKindOfClass:NSDictionary.class]) return NO;
+    NSSet *expected = [NSSet setWithArray:@[@"activityDescriptors", @"controlDescriptors", @"widgetDescriptors"]];
+    return [[NSSet setWithArray:fields.allKeys] isEqualToSet:expected];
+}
+
 static id SCTransformFetchResult(id original) {
     if (![original respondsToSelector:@selector(encodeWithCoder:)]) return original;
     @try {
-        NSKeyedUnarchiver *input = SCDecoder(SCEncodeFields(original));
+        NSData *encoded = SCEncodeFields(original);
+        // Do not silently discard a field added by a future iOS 18 update.
+        if (!SCRecognizesFields(encoded)) return original;
+        NSKeyedUnarchiver *input = SCDecoder(encoded);
         if (!input) return original;
         SCDescriptorPacket *packet = [[SCDescriptorPacket alloc] initWithCoder:input];
         if (!packet || input.error || !packet.changed) return original;

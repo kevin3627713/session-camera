@@ -67,6 +67,7 @@
 @property(nonatomic, copy) NSArray *controls;
 @property(nonatomic, copy) NSArray *widgets;
 @property(nonatomic) BOOL omitWidgets;
+@property(nonatomic) BOOL extraField;
 @end
 @implementation FakeFetchResult
 + (BOOL)supportsSecureCoding { return YES; }
@@ -83,6 +84,7 @@
     [coder encodeObject:self.activities forKey:@"activityDescriptors"];
     [coder encodeObject:self.controls forKey:@"controlDescriptors"];
     if (!self.omitWidgets) [coder encodeObject:self.widgets forKey:@"widgetDescriptors"];
+    if (self.extraField) [coder encodeObject:@"future data" forKey:@"newSchemaField"];
 }
 @end
 
@@ -158,6 +160,8 @@ int main(void) {
         Check(Fetch(server, unknown) == unknown, @"unrelated kinds preserve reply identity");
         FakeFetchResult *malformed = Packet(@[Widget(@"SessionCamera.Clear")]); malformed.omitWidgets = YES;
         Check(Fetch(server, malformed) == malformed, @"missing collection preserves original reply");
+        FakeFetchResult *future = Packet(@[Widget(@"SessionCamera.Clear")]); future.extraField = YES;
+        Check(Fetch(server, future) == future, @"unknown schema preserves every original field");
         CHSWidgetDescriptor *throwing = Widget(@"SessionCamera.Clear"); throwing.throwOnCopy = YES;
         FakeFetchResult *exception = Packet(@[throwing]);
         Check(Fetch(server, exception) == exception, @"Objective-C exception preserves original reply");
