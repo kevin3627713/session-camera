@@ -9,4 +9,8 @@
 
 这是实验预发布：编译、描述符逻辑测试和运行时可用性探测不等于 iOS 18.7.8 真机透明效果已验证。安装后长按主屏幕 → 编辑 → 添加小组件 → 借拍，建议先用空白透明对比普通背景，并移动位置、更换壁纸验证。
 
+已通过 [完整构建](https://github.com/kevin3627713/session-camera/actions/runs/37282829051)：13 项 Swift 测试、两项 Flutter 测试、18 项描述符检查、iPhone Release 与模拟器扩展编译、最终 IPA 校验。真实 iOS 18.6（22G86）模拟器确认所有目标私有方法可用，生产钩子成功安装；本次没有测试主屏幕视觉效果。源码提交 3f15b770010de5e1fee06058e162ef8dab2ef81d，标签中后续提交仅增加验证文档。
+
+应用 / 扩展均为版本 0.2.1、build 4。IPA 大小 6,500,088 字节；SHA-256 为 dcf74e4e418c5ad5250b18c3c54a6d8821433aa3f56f5e43c7da87f16b2409da。
+
 详细原理、来源与验收方法见 [实验说明](https://github.com/kevin3627713/session-camera/blob/experiment/transparent-widgets-ios18/docs/TRANSPARENT_WIDGETS.md)。

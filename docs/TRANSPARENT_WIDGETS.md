@@ -50,3 +50,15 @@
 - 原有 13 项 Swift 会话 / 照片渲染测试与两项 Flutter 桥接测试继续运行。
 
 GitHub Actions 上传的 native-verification 产物含上述测试日志和运行时探测报告。自动检查无法替代 iOS 18.7.8 真机重签名安装及主屏幕视觉验收。
+
+## 本次已取得的结果
+
+2026-10-05 的 [完整构建 37282829051](https://github.com/kevin3627713/session-camera/actions/runs/37282829051) 通过了 13 项 Swift 测试、两项 Flutter 测试、18 项描述符检查、设备 Release 编译、模拟器扩展编译和最终 IPA 校验。程序源码提交为 3f15b770010de5e1fee06058e162ef8dab2ef81d；发行标签还包含后续的验证文档。
+
+真实 iOS 18.6（22G86）模拟器中的私有类和所有目标方法存在，生产钩子安装成功。实际 setPreferredBackgroundStyle: 参数编码为 q（有符号 64 位整数），本实现的类型检查支持该编码。原始运行报告见 [widget-runtime-ios18.6.txt](verification/widget-runtime-ios18.6.txt)。这次探测没有自动添加主屏幕小组件，因此没有将结果记作透明背景的视觉验证。
+
+实验 IPA 的主程序和扩展版本均为 0.2.1 / 4；大小 6,500,088 字节，SHA-256：
+
+    dcf74e4e418c5ad5250b18c3c54a6d8821433aa3f56f5e43c7da87f16b2409da
+
+下载 [widgets-ios18-v0.2.1 实验预发布](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.2.1)，或 [直接下载 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.2.1/session-camera-unsigned.ipa)。
