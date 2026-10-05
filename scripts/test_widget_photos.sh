@@ -41,6 +41,7 @@ codesign --force --sign - "$app"
 xcrun simctl boot "$simulator_id" || true
 xcrun simctl bootstatus "$simulator_id" -b
 xcrun simctl install "$simulator_id" "$app"
+xcrun simctl privacy "$simulator_id" grant photos-add com.kevin3627713.sessioncamera.widgetphototests
 xcrun simctl privacy "$simulator_id" grant photos com.kevin3627713.sessioncamera.widgetphototests
 xcrun simctl launch "$simulator_id" com.kevin3627713.sessioncamera.widgetphototests
 container="$(xcrun simctl get_app_container "$simulator_id" com.kevin3627713.sessioncamera.widgetphototests data)"
@@ -54,4 +55,8 @@ for attempt in $(seq 1 90); do
   sleep 1
 done
 echo "Photos integration report not produced within 90 seconds" >&2
+xcrun simctl io "$simulator_id" screenshot artifacts/widget-photo-timeout.png || true
+xcrun simctl spawn "$simulator_id" log show --last 2m --style compact \
+  --predicate 'process == "WidgetPhotoIntegration" OR process == "tccd"' \
+  > artifacts/widget-photo-runtime.log || true
 exit 1

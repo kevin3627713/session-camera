@@ -18,7 +18,11 @@ struct PhotoIntegrationApp: App {
             checks.append(name)
         }
         var report: [String: Any]
+        let initialStatus = PhotoLibrarySource.status.rawValue
         do {
+            // Request the access level explicitly even after simctl pre-grants it:
+            // PhotoKit initializes its read/write authorization state here.
+            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
             try require(PhotoLibrarySource.status == .authorized, "Full Photos authorization")
             func image(_ color: UIColor) -> UIImage {
                 UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64)).image { context in
@@ -73,7 +77,9 @@ struct PhotoIntegrationApp: App {
             try require(PhotoLibrarySource.assetIDs(sourceID: "folder:deleted-id").isEmpty, "Deleted sources do not fall back to another album")
             report = ["success": true, "checks": checks, "count": checks.count, "os": ProcessInfo.processInfo.operatingSystemVersionString]
         } catch {
-            report = ["success": false, "checks": checks, "error": error.localizedDescription]
+            report = ["success": false, "checks": checks, "error": error.localizedDescription,
+                      "initialAuthorization": initialStatus, "authorization": PhotoLibrarySource.status.rawValue,
+                      "bundleID": Bundle.main.bundleIdentifier ?? "missing"]
         }
         let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
