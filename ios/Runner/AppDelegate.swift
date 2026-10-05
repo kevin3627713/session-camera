@@ -6,6 +6,8 @@ import SwiftUI
 @objc class AppDelegate: FlutterAppDelegate {
   private var nativeChannel: FlutterMethodChannel?
   private var privacyCover: UIView?
+  // A camera view may be recreated; the capture session belongs to this process.
+  private let sessionStore = SessionStore()
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -14,11 +16,11 @@ import SwiftUI
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     if let controller = window?.rootViewController as? FlutterViewController {
       nativeChannel = FlutterMethodChannel(name: "session_camera/native", binaryMessenger: controller.binaryMessenger)
-      nativeChannel?.setMethodCallHandler { [weak controller] call, reply in
+      nativeChannel?.setMethodCallHandler { [weak self, weak controller] call, reply in
         guard call.method == "openCamera" else { reply(FlutterMethodNotImplemented); return }
-        guard let controller else { reply(FlutterError(code: "no_controller", message: "相机启动失败", details: nil)); return }
+        guard let self, let controller else { reply(FlutterError(code: "no_controller", message: "相机启动失败", details: nil)); return }
         guard controller.presentedViewController == nil else { reply(nil); return }
-        let camera = UIHostingController(rootView: CameraScreen())
+        let camera = UIHostingController(rootView: CameraScreen(store: self.sessionStore))
         camera.modalPresentationStyle = .fullScreen
         camera.isModalInPresentation = true
         controller.present(camera, animated: false) { reply(nil) }
@@ -45,12 +47,6 @@ import SwiftUI
       let cover = UIView(frame: window.bounds)
       cover.backgroundColor = .black
       cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-      let label = UILabel(frame: cover.bounds)
-      label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-      label.text = "借拍 · 本次可见"
-      label.textColor = .white
-      label.textAlignment = .center
-      cover.addSubview(label)
       window.addSubview(cover)
       privacyCover = cover
     }

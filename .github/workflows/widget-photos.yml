@@ -5,6 +5,7 @@ on:
     branches: ['experiment/transparent-widgets-ios18']
     paths:
       - 'native/WidgetHookTests/PhotoIntegrationApp.swift'
+      - 'native/WidgetDiagnostics/**'
       - 'ios/SessionWidgets/PhotoLibrarySource.swift'
       - 'ios/SessionWidgets/SessionWidgets.swift'
       - 'ios/SessionWidgets/WidgetOptions.swift'
@@ -22,6 +23,12 @@ concurrency:
 
 jobs:
   photos:
+    strategy:
+      fail-fast: false
+      matrix:
+        diagnostics: ['0', '1']
+    env:
+      WIDGET_PHOTO_DIAGNOSTICS: ${{ matrix.diagnostics }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -33,6 +40,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: widget-photo-verification-${{ github.run_number }}
+          name: widget-photo-verification-${{ github.run_number }}-diagnostics-${{ matrix.diagnostics }}
           path: artifacts/
           if-no-files-found: ignore

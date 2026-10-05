@@ -35,5 +35,9 @@ ipa_path="$PWD/$ipa_name"
 if [[ -e "$ipa_path" ]]; then rm "$ipa_path"; fi
 (cd "$package_dir" && zip -q -r "$ipa_path" Payload)
 unzip -tq "$ipa_path"
-python3 scripts/verify_ipa.py "$ipa_path"
+verification_flags=()
+if [[ "${WIDGET_PHOTO_DIAGNOSTICS:-0}" == "1" ]]; then
+  verification_flags=(--widget-diagnostics)
+fi
+python3 scripts/verify_ipa.py "$ipa_path" "${verification_flags[@]}"
 echo "Created $ipa_path"

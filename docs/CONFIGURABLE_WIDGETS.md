@@ -1,6 +1,6 @@
-# 借拍 0.3.2：编辑样式与随机相册排查
+# 借拍 0.3.3：可编辑样式与随机相册
 
-在 experiment/transparent-widgets-ios18 分支继续开发。机主确认 0.3.1 在 iOS 18.7.8 的所有尺寸仍停在系统骨架占位，少量照片也会发生、没有开启 iCloud 优化。0.3.2 减少图片预加载并加入组件内分阶段诊断，作为待真机验证的候选版。调查资料、证据强度和操作见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)。本版仍是同一个主应用、同一个小组件扩展。
+在 experiment/transparent-widgets-ios18 分支继续开发。机主已确认 0.3.2 在 iOS 18.7.8 的照片组件正常显示。0.3.3 保留同一张高清图片、裁剪和缓存策略，诊断改为显式编译开关，不出现在正常 IPA 中。历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)，诊断启用见 [WidgetDiagnostics](../native/WidgetDiagnostics/README.md)。本版仍是同一个主应用、同一个小组件扩展。
 
 ## 原生编辑小组件
 
@@ -26,7 +26,7 @@
 
 ## 随机相册照片
 
-1. 在借拍右上角安心借拍说明 → 照片小组件权限与刷新，完成机主 Face ID / Touch ID / 设备密码验证。
+1. 在借拍右上角锁图标 → 设置 → 照片小组件 → 权限与刷新，完成机主 Face ID / Touch ID / 设备密码验证。
 2. 按系统设置说明允许照片访问。仅使用相机仍推荐有限访问；选择具名相册或文件夹需要完整访问。
 3. 在主屏幕编辑小组件，把样式改为“随机相册照片”。
 4. 选择相册、文件夹或已授权照片，填写更换间隔，选择这个小组件自己的独立编号。

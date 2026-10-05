@@ -93,7 +93,7 @@ final class PreviewAppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = UIHostingController(rootView: CameraScreen())
+        window.rootViewController = UIHostingController(rootView: CameraScreen(store: SessionStore()))
         window.makeKeyAndVisible()
         self.window = window
         return true

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B10000000000000000000008 /* PhotoWidgetDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000C /* PhotoWidgetDiagnostics.swift */; };
 		B10000000000000000000005 /* WidgetOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* WidgetOptions.swift */; };
 		B10000000000000000000006 /* PhotoLibrarySource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000A /* PhotoLibrarySource.swift */; };
 		B10000000000000000000007 /* PhotoSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000B /* PhotoSchedule.swift */; };
@@ -70,6 +71,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B2000000000000000000000C /* PhotoWidgetDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../../native/WidgetDiagnostics/PhotoWidgetDiagnostics.swift"; sourceTree = "<group>"; };
 		B20000000000000000000009 /* WidgetOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetOptions.swift; sourceTree = "<group>"; };
 		B2000000000000000000000A /* PhotoLibrarySource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrarySource.swift; sourceTree = "<group>"; };
 		B2000000000000000000000B /* PhotoSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoSchedule.swift; path = ../../native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 				B20000000000000000000000 /* SessionWidgets.swift */,
 				B20000000000000000000009 /* WidgetOptions.swift */,
 				B2000000000000000000000A /* PhotoLibrarySource.swift */,
+				B2000000000000000000000C /* PhotoWidgetDiagnostics.swift */,
 				B2000000000000000000000B /* PhotoSchedule.swift */,
 				B20000000000000000000001 /* WidgetBackgroundHook.m */,
 				B20000000000000000000003 /* WidgetBackgroundHook.h */,
@@ -371,7 +374,7 @@
 		B90000000000000000000000 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (B10000000000000000000000 /* SessionWidgets.swift in Sources */, B10000000000000000000001 /* WidgetBackgroundHook.m in Sources */, B10000000000000000000005 /* WidgetOptions.swift in Sources */, B10000000000000000000006 /* PhotoLibrarySource.swift in Sources */, B10000000000000000000007 /* PhotoSchedule.swift in Sources */, );
+			files = (B10000000000000000000008 /* PhotoWidgetDiagnostics.swift in Sources */, B10000000000000000000000 /* SessionWidgets.swift in Sources */, B10000000000000000000001 /* WidgetBackgroundHook.m in Sources */, B10000000000000000000005 /* WidgetOptions.swift in Sources */, B10000000000000000000006 /* PhotoLibrarySource.swift in Sources */, B10000000000000000000007 /* PhotoSchedule.swift in Sources */, );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		331C807D294A63A400263BE5 /* Sources */ = {

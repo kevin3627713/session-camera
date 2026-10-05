@@ -125,6 +125,7 @@ final class SessionStore: ObservableObject {
     private var recovering = false
     private var editing = Set<UUID>()
     private let vault = CaptureVault.shared
+    private var preparationTask: Task<Void, Never>?
 
     init() { sessionID = ledger.sessionID }
 
@@ -163,6 +164,19 @@ final class SessionStore: ObservableObject {
     func prepareLibrary() async {
         // Suppress all hardware/permission work in XCTest's hosted process.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        if let preparationTask {
+            await preparationTask.value
+            refreshPermissions()
+            return
+        }
+        // Run startup cleanup once. Reopening a view must not delete this
+        // process's originals or edited files while they are still displayed.
+        let task = Task { await self.prepareLibraryOnce() }
+        preparationTask = task
+        await task.value
+    }
+
+    private func prepareLibraryOnce() async {
         var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         if status == .notDetermined {
             status = await withCheckedContinuation { continuation in
@@ -253,22 +267,6 @@ final class SessionStore: ObservableObject {
             }
             pendingRecoveryCount = (try await vault.pendingFiles()).count
         } catch { message = error.localizedDescription }
-    }
-
-    func resetSession() {
-        let previous = captures
-        ledger.reset() // Invalidate callbacks BEFORE clearing views or touching files.
-        sessionID = ledger.sessionID
-        captures.removeAll()
-        editing.removeAll()
-        Task {
-            for item in previous {
-                await vault.discardIfSaved(item.originalURL)
-                if item.displayURL != item.originalURL {
-                    await vault.discardIfSaved(item.displayURL)
-                }
-            }
-        }
     }
 
     func hide(_ item: SessionCapture) {

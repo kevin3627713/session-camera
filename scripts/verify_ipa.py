@@ -4,6 +4,7 @@ import plistlib
 import sys
 import zipfile
 
+diagnostics_enabled = "--widget-diagnostics" in sys.argv[2:]
 with zipfile.ZipFile(sys.argv[1]) as archive:
     info = plistlib.loads(archive.read("Payload/Runner.app/Info.plist"))
     assert info["CFBundleIdentifier"] == "com.kevin3627713.sessioncamera"
@@ -42,10 +43,18 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     configuration = definitions["actions"]["CameraWidgetConfiguration"]
     assert "com.apple.link.systemProtocol.WidgetConfiguration" in configuration["systemProtocolMetadata"]
     parameters = {item["name"]: item for item in configuration["parameters"]}
-    assert set(parameters) == {"style", "tapBehavior", "source", "intervalMinutes", "identity", "photoDiagnostic"}
+    expected_parameters = {"style", "tapBehavior", "source", "intervalMinutes", "identity"}
+    if diagnostics_enabled:
+        expected_parameters.add("photoDiagnostic")
+    assert set(parameters) == expected_parameters
     assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
     assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
-    assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
+    if diagnostics_enabled:
+        assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
+    else:
+        assert all(item["identifier"] != "PhotoWidgetDiagnosticMode" for item in definitions["enums"])
+        for marker in (b"WidgetPhotoDiagnostics", b"PhotoPipeline", "绘制测试通过".encode(), "照片请求完成".encode()):
+            assert marker not in widget_executable, "Photo diagnostics leaked into the normal IPA"
     assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
     styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
     assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}

@@ -3,39 +3,15 @@ import Photos
 import UIKit
 import CryptoKit
 import ImageIO
-import os
-import Darwin
 
-enum WidgetPhotoDiagnostics {
-    private static let logger = Logger(subsystem: "com.kevin3627713.sessioncamera.widgets", category: "PhotoPipeline")
-    static var memoryMiB: Double {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let result = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : 0
-    }
-    static func record(_ phase: String) {
-        // No asset IDs, album names or photo bytes enter the system log.
-        logger.info("phase=\(phase, privacy: .public) memoryMiB=\(memoryMiB, privacy: .public)")
-    }
+// Inspect JPEG dimensions without decoding its pixels into memory.
+enum PhotoImageMetadata {
     static func dimensions(_ data: Data) -> CGSize? {
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
               let height = properties[kCGImagePropertyPixelHeight] as? NSNumber else { return nil }
         return CGSize(width: CGFloat(width.doubleValue), height: CGFloat(height.doubleValue))
-    }
-    static func testImage() -> Data? {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1; format.opaque = true; format.preferredRange = .standard
-        return UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64), format: format).image { context in
-            UIColor.systemBlue.setFill(); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
-            UIColor.systemRed.setFill(); context.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
-        }.pngData()
     }
 }
 
@@ -131,7 +107,9 @@ enum PhotoLibrarySource {
     }
 
     static func imageData(assetID: String, size: CGSize, timeout: TimeInterval = 8) async -> Data? {
+#if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("image-access-check")
+#endif
         // Recheck access and the asset before consulting the extension's cache.
         // Cached bytes must never bypass a removed asset or revoked permission.
         guard status == .authorized || status == .limited,
@@ -139,7 +117,9 @@ enum PhotoLibrarySource {
         let target = pixelSize(for: size)
         let cacheKey = PhotoImageCache.key(asset: asset, target: target)
         if let cached = PhotoImageCache.read(key: cacheKey, target: target) {
+#if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("image-cache-hit")
+#endif
             return cached
         }
         let data: Data? = await withCheckedContinuation { continuation in
@@ -149,7 +129,9 @@ enum PhotoLibrarySource {
             options.resizeMode = .exact
             options.normalizedCropRect = cropRect(assetSize: CGSize(width: CGFloat(asset.pixelWidth), height: CGFloat(asset.pixelHeight)), target: target)
             options.isNetworkAccessAllowed = true
+#if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("image-request-start")
+#endif
             let identifier = PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: options) { image, info in
                 request.receive(image, info: info)
             }
@@ -157,7 +139,9 @@ enum PhotoLibrarySource {
             DispatchQueue.global().asyncAfter(deadline: .now() + max(0.1, timeout)) { request.finish(nil) }
         }
         if let data { PhotoImageCache.write(data, key: cacheKey) }
+#if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record(data == nil ? "image-request-unavailable" : "image-request-complete")
+#endif
         return data
     }
 
@@ -202,9 +186,11 @@ final class PhotoImageRequest: @unchecked Sendable {
         let completed = continuation == nil
         lock.unlock()
         guard !completed else { return }
+#if WIDGET_PHOTO_DIAGNOSTICS
         if let pixels = image.cgImage {
             WidgetPhotoDiagnostics.record("image-final-\(pixels.width)x\(pixels.height)-\(pixels.bitsPerPixel)bpp")
         }
+#endif
         let data = autoreleasepool {
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
@@ -256,7 +242,7 @@ enum PhotoImageCache {
     static func read(key: String, target: CGSize) -> Data? {
         let url = directory.appendingPathComponent(key + ".jpg")
         guard let data = try? Data(contentsOf: url),
-              WidgetPhotoDiagnostics.dimensions(data) == target else { return nil }
+              PhotoImageMetadata.dimensions(data) == target else { return nil }
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
         return data
     }

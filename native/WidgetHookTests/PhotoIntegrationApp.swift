@@ -166,6 +166,7 @@ struct PhotoIntegrationApp: App {
                                           minutes: 60, now: now)[1].date
             try require(partial.policy == .after(next),
                         "Single-photo timeline requests reload at its instance-specific next boundary")
+            #if WIDGET_PHOTO_DIAGNOSTICS
             configuration.photoDiagnostic = .library
             loads = 0
             let libraryCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
@@ -178,6 +179,7 @@ struct PhotoIntegrationApp: App {
             try require(requestCheck.entries[0].imageData == nil && requestCheck.entries[0].message?.contains("480 × 480") == true,
                         "Request diagnostic returns dimensions as text without passing photo bytes to the view")
             configuration.photoDiagnostic = .off
+            #endif
             configuration.source = nil
             let unconfigured = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160))
             try require(unconfigured.entries[0].style == .photos && unconfigured.entries[0].message?.contains("选择相册") == true,
@@ -188,6 +190,7 @@ struct PhotoIntegrationApp: App {
             try require(unidentified.entries[0].message?.contains("独立编号") == true,
                         "Missing identity displays guidance instead of sharing another widget sequence")
             configuration.source = nil
+            #if WIDGET_PHOTO_DIAGNOSTICS
             configuration.photoDiagnostic = .rendering
             loads = 0
             let renderCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
@@ -196,6 +199,7 @@ struct PhotoIntegrationApp: App {
                         "Rendering diagnostic supplies a tiny synthetic image without a source, identity or PhotoKit request")
             try require(CameraWidgetConfiguration().photoDiagnostic == .off,
                         "Diagnostics are disabled by default for existing and new widgets")
+            #endif
             // Seed a valid file for an ID that PhotoKit does not contain. Unlike
             // deleting a real asset, this needs no system confirmation dialog.
             let missingID = UUID().uuidString + "/L0/001"
@@ -214,6 +218,11 @@ struct PhotoIntegrationApp: App {
                       "initialAuthorization": initialStatus, "authorization": PhotoLibrarySource.status.rawValue,
                       "bundleID": Bundle.main.bundleIdentifier ?? "missing"]
         }
+        #if WIDGET_PHOTO_DIAGNOSTICS
+        report["diagnosticsEnabled"] = true
+        #else
+        report["diagnosticsEnabled"] = false
+        #endif
         let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: directory.appendingPathComponent("widget-photo-integration.json"), options: .atomic)

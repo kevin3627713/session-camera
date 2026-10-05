@@ -10,7 +10,7 @@ final class SessionLedgerTests: XCTestCase {
         XCTAssertFalse(ledger.admit(CaptureTicket(sessionID: UUID())))
     }
 
-    func testLatePhotoAndVideoCallbacksCannotLeakAcrossBackground() {
+    func testLatePhotoAndVideoCallbacksCannotLeakAcrossSessionReset() {
         var ledger = SessionLedger()
         let photoInFlight = ledger.issueTicket()
         let videoInFlight = ledger.issueTicket()

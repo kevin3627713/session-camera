@@ -7,7 +7,7 @@ import WidgetKit
 
 struct CameraScreen: View {
     @StateObject private var engine = CameraEngine()
-    @StateObject private var store = SessionStore()
+    @ObservedObject private var store: SessionStore
     @State private var mode = CameraMode.photo
     @State private var flash = AVCaptureDevice.FlashMode.auto
     @State private var timerSeconds = 0
@@ -25,8 +25,11 @@ struct CameraScreen: View {
     @State private var shutterPulse = false
     @AppStorage("showGrid") private var grid = false
     @AppStorage("remindGuidedAccess") private var remindGuidedAccess = false
-    @AppStorage("completedSetup") private var completedSetup = false
     @AppStorage("captureAspect") private var aspectRaw = CaptureAspect.wide.rawValue
+
+    init(store: SessionStore) {
+        self.store = store
+    }
 
     private var aspect: CaptureAspect { CaptureAspect(rawValue: aspectRaw) ?? .wide }
     private var overlaysPreview: Bool { mode == .video || aspect == .wide }
@@ -87,10 +90,7 @@ struct CameraScreen: View {
             await store.prepareLibrary()
             engine.start()
             setupDone = true
-            if !completedSetup || (remindGuidedAccess && !guidedAccess) {
-                guideVisible = true
-                completedSetup = true
-            }
+            if remindGuidedAccess && !guidedAccess { guideVisible = true }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             #if CAMERA_UI_PREVIEW
@@ -99,9 +99,7 @@ struct CameraScreen: View {
             active = false
             countdownTask?.cancel()
             countdown = 0
-            galleryVisible = false
-            guideVisible = false
-            store.resetSession()
+            // Suspension pauses capture, but keeps the process's photos and editor.
             engine.stop()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -616,37 +614,22 @@ struct GuidedAccessGuide: View {
         NavigationStack {
             List {
                 Section {
-                    Label(isEnabled ? "引导式访问已开启" : "相册隔离已生效", systemImage: isEnabled ? "lock.fill" : "shield.fill")
-                        .foregroundStyle(.green)
-                    Text("借拍只显示本次打开期间拍摄的内容，照片及修改自动同步到系统照片。退到后台后开始新的拍摄。")
+                    Label(isEnabled ? "已开启" : "未开启", systemImage: isEnabled ? "lock.fill" : "lock.open")
+                        .foregroundStyle(isEnabled ? Color.green : Color.secondary)
+                    Toggle("打开时提醒", isOn: $remind)
+                } header: {
+                    Text("引导式访问")
+                } footer: {
+                    Text("在系统设置 → 辅助功能中开启引导式访问，连按三下侧边按钮（或主屏幕按钮）启动。")
                 }
-                Section("交给别人前") {
-                    Text("引导式访问可将手机锁在借拍里，防止退出后打开系统照片或其他应用。")
-                    Text("首次：系统设置 → 辅助功能 → 引导式访问，开启并设置密码、Face ID 和辅助功能快捷键。")
-                    Text("每次：进入借拍后连按三下侧边按钮（有 Home 键的机型连按三下 Home），选择引导式访问并开始。")
-                    Text("退出：使用侧边按钮及你的引导式访问密码或 Face ID，按系统提示结束。")
+                Section("自动开启") {
+                    Text("快捷指令 → 自动化 → App → 借拍被打开 → 立即运行 → 开始引导式访问。")
                 }
-                Section("打开借拍时自动开启") {
-                    Text("先完成借拍的相机及照片权限授权，并手动测试一次引导式访问和退出。")
-                    Text("快捷指令 → 自动化 → App → 选择借拍 → 被打开 → 立即运行。添加「开始引导式访问」动作并保存。")
-                    Text("这项自动化由你在系统中配置。相机右上角的黄色实心锁表示引导式访问已开启；也可以点按图标查看状态。未开启时请手动启动。")
+                Section("照片小组件") {
+                    Button("权限与刷新") { photoWidgetSettings = true }
                 }
-                Section {
-                    Toggle("每次打开时提醒开启引导式访问", isOn: $remind)
-                }
-                Section("照片权限") {
-                    Text("建议选择「有限访问」：新拍照片仍可保存和编辑，也不会在借拍中显示你的其他照片。")
-                    Text("仅添加照片权限可以保存新照片，但不能同步修改原记录。编辑时 iOS 可能要求你确认允许修改。")
-                }
-                Section("主屏小组件（实验）") {
-                    Text("长按小组件 → 编辑小组件，即可切换透明、空白、磨砂、普通背景和随机相册照片，不需要删除重放。旧版四种预设均保留并可编辑。")
-                    Text("默认点击不打开应用；可以在小组件设置中改成打开借拍。照片样式可分别选择相册/文件夹、更换周期和独立编号。")
-                    Text("透明样式尝试透出真实壁纸。可移动小组件或切换壁纸检查效果；若显示普通底色，表示当前系统没有应用透明设置。")
-                    Text("空白透明仍占主屏网格。小组件的系统名称标签由主屏设置控制。")
-                    Button("照片小组件权限与刷新（机主验证）") { photoWidgetSettings = true }
-                }
-            }.navigationTitle("安心借拍").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("开始拍摄") { dismiss() } } }
+            }.navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
         }.preferredColorScheme(.dark)
             .sheet(isPresented: $photoWidgetSettings) { PhotoWidgetOwnerSettings() }
     }
@@ -664,16 +647,16 @@ private struct PhotoWidgetOwnerSettings: View {
             List {
                 if !unlocked {
                     Section {
-                        Label("照片小组件设置需要机主验证", systemImage: "lock.fill")
-                        Text("用 Face ID、Touch ID 或设备密码验证后，才可管理照片访问。")
+                        Label("需要机主验证", systemImage: "lock.fill")
                         Button(busy ? "正在验证…" : "验证机主身份") { Task { await authenticate() } }.disabled(busy)
                         if let message { Text(message).foregroundStyle(.secondary) }
                     }
                 } else {
                     Section("照片访问") {
-                        Text(status == .authorized ? "当前为完整照片访问，可选择相册和文件夹。" :
-                             status == .limited ? "当前为有限照片访问，小组件可选择已授权照片；无法读取相册/文件夹目录。" : "尚未允许读取照片。")
-                        Text("使用相机仍只需有限权限。要按相册或文件夹随机展示，请在系统设置中将借拍的照片访问改成完整访问。")
+                        Text(status == .authorized ? "完整访问" : status == .limited ? "有限访问" : "未允许访问")
+                        if status != .authorized {
+                            Text("选择相册或文件夹需要完整照片访问。").font(.footnote).foregroundStyle(.secondary)
+                        }
                         if status == .notDetermined {
                             Button("申请照片访问") {
                                 PHPhotoLibrary.requestAuthorization(for: .readWrite) { value in
@@ -681,23 +664,19 @@ private struct PhotoWidgetOwnerSettings: View {
                                 }
                             }
                         }
-                        Button("打开借拍的系统权限设置") {
+                        Button("系统权限设置") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                         }
                     }
-                    Section("每个小组件分别设置") {
-                        Text("回到主屏幕，长按小组件 → 编辑小组件 → 样式选择随机相册照片。选择来源、5～10080 分钟的周期，以及这个小组件自己的独立编号。")
-                        Text("编号会自动提供。复制小组件或需要独立随机序列时，选择一个新编号；来源相同的两个组件偶尔抽到同一张照片属于正常随机结果。")
-                        Text("系统控制刷新时间，可能延后；照片在 iCloud 中且暂时无法下载时会显示提示。")
+                    Section {
                         Button("刷新照片小组件") {
                             status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
                             WidgetCenter.shared.reloadAllTimelines()
-                            message = "已请求系统刷新小组件。"
+                            message = "已请求刷新。"
                         }
                         if let message { Text(message).foregroundStyle(.secondary) }
-                    }
-                    Section("显示范围") {
-                        Text("所选照片会显示在主屏幕。这个功能只在小组件读取来源，不会把已有照片加入借拍的本次相册。默认点击小组件不打开任何应用。")
+                    } footer: {
+                        Text("来源、周期和独立编号在主屏幕的「编辑小组件」中设置。")
                     }
                 }
             }.navigationTitle("照片小组件").navigationBarTitleDisplayMode(.inline)
@@ -745,8 +724,7 @@ struct SessionGallery: View {
                     VStack(spacing: 16) {
                         Image(systemName: "photo.on.rectangle").font(.system(size: 40, weight: .ultraLight))
                             .foregroundStyle(.gray)
-                        Text("本次还没有照片").font(.system(size: 19, weight: .semibold))
-                        Text("拍摄后可在这里查看").font(.system(size: 14)).foregroundStyle(.gray)
+                        Text("无照片").font(.system(size: 19, weight: .semibold))
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     TabView(selection: $selected) {
@@ -786,22 +764,21 @@ struct SessionGallery: View {
         }
         .sheet(isPresented: $infoVisible) {
             VStack(spacing: 20) {
-                Image(systemName: "lock.shield").font(.system(size: 32, weight: .light))
-                Text("本次拍摄").font(.title3.weight(.semibold))
-                Text("这里只显示这次打开借拍后拍摄的照片和视频。\n照片及修改自动保存到系统「照片」。")
-                    .font(.system(size: 15)).multilineTextAlignment(.center).foregroundStyle(.secondary)
                 if let item = current {
+                    Image(systemName: item.kind == .video ? "video" : "photo")
+                        .font(.system(size: 32, weight: .light))
+                    Text(item.kind == .video ? "视频" : "照片").font(.title3.weight(.semibold))
                     Text(item.capturedAt.formatted(date: .abbreviated, time: .standard))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.padding(30).presentationDetents([.height(285)]).presentationDragIndicator(.visible)
+            }.padding(30).presentationDetents([.height(210)]).presentationDragIndicator(.visible)
                 .preferredColorScheme(.light)
         }
         .alert("无法更新照片", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("好") { error = nil }
         } message: { Text(error ?? "") }
-        .confirmationDialog("从本次预览移除？系统照片仍会保留。", isPresented: $confirmHide, titleVisibility: .visible) {
-            Button("移出本次预览", role: .destructive) {
+        .confirmationDialog("从预览移除？系统照片仍会保留。", isPresented: $confirmHide, titleVisibility: .visible) {
+            Button("移除预览", role: .destructive) {
                 if let item = current { store.hide(item) }
                 selected = store.captures.last?.id
             }
@@ -820,14 +797,14 @@ struct SessionGallery: View {
                 }.accessibilityLabel("返回相机")
                 Spacer()
                 Button { gridVisible = true } label: {
-                    Text("本次照片").font(.system(size: 15, weight: .semibold))
+                    Text("照片").font(.system(size: 15, weight: .semibold))
                         .padding(.horizontal, 13).frame(height: 28)
                         .background(controlFill, in: Capsule())
                 }.accessibilityLabel("查看本次照片网格")
                 Menu {
-                    Button("本次拍摄说明", systemImage: "lock.shield") { infoVisible = true }
+                    Button("信息", systemImage: "info.circle") { infoVisible = true }
                     if current != nil {
-                        Button("移出本次预览", systemImage: "eye.slash", role: .destructive) { confirmHide = true }
+                        Button("移除预览", systemImage: "eye.slash", role: .destructive) { confirmHide = true }
                     }
                 } label: {
                     Image(systemName: "ellipsis").font(.system(size: 20, weight: .semibold))
@@ -955,7 +932,7 @@ struct SessionPhotoGrid: View {
                         }.buttonStyle(.plain).accessibilityLabel("查看本次拍摄")
                     }
                 }
-            }.background(.white).navigationTitle("本次照片").navigationBarTitleDisplayMode(.inline)
+            }.background(.white).navigationTitle("照片").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("返回") { dismiss() } }
                 }

@@ -10,6 +10,10 @@ on:
         description: Run optional hosted iPhone simulator tests and UI screenshot
         type: boolean
         default: false
+      widget_diagnostics:
+        description: Include optional photo diagnostics (normal IPA leaves this off)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,6 +26,8 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 40
+    env:
+      WIDGET_PHOTO_DIAGNOSTICS: ${{ inputs.widget_diagnostics && '1' || '0' }}
     steps:
       - uses: actions/checkout@v5
       - name: Test session isolation and native photo rendering
@@ -40,6 +46,9 @@ jobs:
         run: flutter analyze --fatal-infos
       - name: Test native launch bridge
         run: flutter test
+      - name: Enable optional widget diagnostics
+        if: inputs.widget_diagnostics
+        run: printf '\nSWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) WIDGET_PHOTO_DIAGNOSTICS\n' >> ios/SessionWidgets/Widget.xcconfig
       - name: Build iPhone application without a certificate
         run: flutter build ios --release --no-codesign
       - name: Compile widget extension for iPhone simulator
@@ -52,6 +61,26 @@ jobs:
               exit 1
             }
           tail -n 8 artifacts/widget-simulator-compile.log
+      - name: Compile retained diagnostics and verify their App Intents metadata
+        run: |
+          xcodebuild -project ios/Runner.xcodeproj -target SessionWidgets \
+            -configuration Debug -sdk iphonesimulator \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS="DEBUG WIDGET_PHOTO_DIAGNOSTICS" \
+            SYMROOT="$RUNNER_TEMP/widget-diagnostics-simulator" CODE_SIGNING_ALLOWED=NO \
+            > artifacts/widget-diagnostics-compile.log 2>&1 || {
+              tail -n 100 artifacts/widget-diagnostics-compile.log
+              exit 1
+            }
+          python3 - "$RUNNER_TEMP/widget-diagnostics-simulator" <<'PY'
+          import json, pathlib, sys
+          path = next(pathlib.Path(sys.argv[1]).rglob('extract.actionsdata'))
+          definitions = json.loads(path.read_bytes())
+          parameters = {item['name'] for item in definitions['actions']['CameraWidgetConfiguration']['parameters']}
+          assert parameters == {'style', 'tapBehavior', 'source', 'intervalMinutes', 'identity', 'photoDiagnostic'}
+          modes = next(item for item in definitions['enums'] if item['identifier'] == 'PhotoWidgetDiagnosticMode')
+          assert {item['identifier'] for item in modes['cases']} == {'off', 'rendering', 'library', 'request'}
+          print('Retained diagnostics compiled and registered; normal IPA verified separately.')
+          PY
       - name: Inspect actual iOS 18 private widget runtime
         timeout-minutes: 6
         run: bash scripts/probe_widget_runtime.sh
@@ -61,7 +90,7 @@ jobs:
       - name: Test actual album and folder photo access on iOS 18
         timeout-minutes: 14
         run: bash scripts/test_widget_photos.sh
-      - name: Test photo editing on iPhone simulator
+      - name: Test session lifecycle and photo editing on iPhone simulator
         if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
         timeout-minutes: 15
         run: bash scripts/test_ios_simulator.sh

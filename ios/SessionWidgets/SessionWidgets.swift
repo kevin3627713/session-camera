@@ -32,7 +32,9 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
                       loadImage: (String, CGSize, TimeInterval) async -> Data? = {
                           await PhotoLibrarySource.imageData(assetID: $0, size: $1, timeout: $2)
                       }) async -> Timeline<CameraWidgetEntry> {
+        #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("provider-start")
+        #endif
         let style = resolved(configuration)
         func entry(_ message: String) -> CameraWidgetEntry {
             CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior, message: message)
@@ -40,14 +42,10 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         guard style == .photos else {
             return Timeline(entries: [CameraWidgetEntry(date: now, style: style, tapBehavior: configuration.tapBehavior)], policy: .never)
         }
-        // This mode deliberately exercises the same Button/image/WidgetKit
-        // view as a photo, without initializing PhotoKit or reading any album.
-        if configuration.photoDiagnostic == .rendering {
-            WidgetPhotoDiagnostics.record("rendering-test-ready")
-            return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
-                imageData: WidgetPhotoDiagnostics.testImage(), message: "绘制测试通过\n红蓝色块与文字")], policy: .never)
-        }
+        #if WIDGET_PHOTO_DIAGNOSTICS
+        if let timeline = WidgetPhotoDiagnostics.renderingTimeline(configuration, now: now) { return timeline }
         WidgetPhotoDiagnostics.record("authorization-check")
+        #endif
         guard PhotoLibrarySource.status == .authorized || PhotoLibrarySource.status == .limited else {
             return Timeline(entries: [entry("请在借拍的机主设置中开启照片权限")], policy: .after(now.addingTimeInterval(900)))
         }
@@ -60,12 +58,14 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         guard (5...10_080).contains(configuration.intervalMinutes) else {
             return Timeline(entries: [entry("更换间隔请填写 5～10080 分钟")], policy: .never)
         }
+        #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("source-query-start")
+        #endif
         let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
+        #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("source-query-complete-count-\(assets.count)")
-        if configuration.photoDiagnostic == .library {
-            return Timeline(entries: [entry("相册读取完成\n可用照片：\(assets.count)\n权限：\(PhotoLibrarySource.status.rawValue)\n内存：\(String(format: "%.1f", WidgetPhotoDiagnostics.memoryMiB)) MiB")], policy: .never)
-        }
+        if let timeline = WidgetPhotoDiagnostics.libraryTimeline(configuration, now: now, count: assets.count) { return timeline }
+        #endif
         guard !assets.isEmpty else {
             let message = PhotoLibrarySource.status == .limited && source.id != PhotoLibrarySource.accessibleID
                 ? "读取相册/文件夹需要完整照片访问；有限权限可选已授权照片"
@@ -77,16 +77,16 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         let picks = PhotoSchedule.plan(assetIDs: assets, instanceID: identity.id, sourceID: source.id,
                                       minutes: configuration.intervalMinutes, now: now, count: 2)
         guard let imageData = await loadImage(picks[0].assetID, size, 8) else {
+        #if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("provider-image-unavailable")
-            return Timeline(entries: [entry("照片暂未加载；稍后会重试\n可在编辑小组件中使用照片排查")],
+        #endif
+            return Timeline(entries: [entry("照片暂未加载；稍后会重试")],
                             policy: .after(now.addingTimeInterval(300)))
         }
-        if configuration.photoDiagnostic == .request {
-            let pixels = WidgetPhotoDiagnostics.dimensions(imageData) ?? .zero
-            WidgetPhotoDiagnostics.record("request-test-ready")
-            return Timeline(entries: [entry("照片请求完成\n\(Int(pixels.width)) × \(Int(pixels.height)) 像素\n\(imageData.count / 1024) KiB\n内存：\(String(format: "%.1f", WidgetPhotoDiagnostics.memoryMiB)) MiB")], policy: .never)
-        }
+        #if WIDGET_PHOTO_DIAGNOSTICS
+        if let timeline = WidgetPhotoDiagnostics.requestTimeline(configuration, now: now, data: imageData) { return timeline }
         WidgetPhotoDiagnostics.record("timeline-ready-one-image")
+        #endif
         return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
             imageData: imageData)], policy: .after(picks[1].date))
     }
@@ -97,9 +97,13 @@ struct CameraWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     private func photoImage(_ data: Data) -> UIImage? {
+        #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("view-image-decode-start")
+        #endif
         let image = UIImage(data: data)
+        #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record(image == nil ? "view-image-invalid" : "view-image-ready")
+        #endif
         return image
     }
 

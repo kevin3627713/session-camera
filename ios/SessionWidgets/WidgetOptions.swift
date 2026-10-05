@@ -18,15 +18,6 @@ enum WidgetTapBehavior: String, AppEnum {
     ]
 }
 
-enum PhotoWidgetDiagnosticMode: String, AppEnum {
-    case off, rendering, library, request
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "照片排查"
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
-        .off: "关闭（正常照片）", .rendering: "1 · 测试图与文字",
-        .library: "2 · 只读取相册", .request: "3 · 请求照片但只显示结果"
-    ]
-}
-
 struct PhotoSourceEntity: AppEntity {
     var id: String
     var name: String
@@ -77,7 +68,9 @@ struct CameraWidgetConfiguration: WidgetConfigurationIntent {
     @Parameter(title: "相册或文件夹") var source: PhotoSourceEntity?
     @Parameter(title: "更换间隔（分钟，5～10080）", default: 60) var intervalMinutes: Int
     @Parameter(title: "独立编号") var identity: WidgetIdentityEntity?
+    #if WIDGET_PHOTO_DIAGNOSTICS
     @Parameter(title: "照片排查", default: .off) var photoDiagnostic: PhotoWidgetDiagnosticMode
+    #endif
 
     static var parameterSummary: some ParameterSummary {
         When(\.$style, .equalTo, CameraWidgetStyle.photos) {
@@ -87,7 +80,9 @@ struct CameraWidgetConfiguration: WidgetConfigurationIntent {
                 \.$intervalMinutes
                 \.$identity
                 \.$tapBehavior
+                #if WIDGET_PHOTO_DIAGNOSTICS
                 \.$photoDiagnostic
+                #endif
             }
         } otherwise: {
             Summary {
