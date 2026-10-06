@@ -6,9 +6,9 @@
 
 Public repository: https://github.com/kevin3627713/session-camera
 
-**当前分支：iOS 18 可编辑小组件实验。** 四种原有预设都可通过原生“编辑小组件”切换五种样式，支持按相册 / 文件夹独立随机展示照片和更换周期，默认点击不打开应用，共用原来的一个 WidgetKit 扩展。0.3.4 调用系统照片小组件使用的建议裁剪接口，只移动取景位置、保留原有放大程度，并增加“在系统照片中打开”点击选项。后台保留同一相机会话，普通构建不包含照片诊断功能。正式 main 分支保持原版本。
+**当前分支：experiment/widget-direct-photos-ios18。** 五种可编辑样式、独立随机相册、高清加载及系统建议取景继续保留。0.3.5 将“在系统照片中打开”改为小组件后台意图 → 内置 Share 扩展 → 系统照片；借拍主应用不参与这条路径。同一个 IPA 内包含原 WidgetKit 扩展和新增的照片中转扩展，重签时须保留两者。默认点击仍不打开应用，后台保留同一相机会话，普通构建不包含诊断功能。正式 main 分支保持原版本。
 
-[下载 0.3.4 候选 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.4/session-camera-unsigned.ipa) · [候选版说明](docs/WIDGET_RELEASE_NOTES.md) · [小组件配置](docs/CONFIGURABLE_WIDGETS.md)。照片问题的历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](docs/WIDGET_PHOTO_INVESTIGATION.md)，保留的可选诊断代码及启用方式见 [WidgetDiagnostics](native/WidgetDiagnostics/README.md)。
+[下载 0.3.5 候选 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.5/session-camera-unsigned.ipa) · [候选版说明](docs/WIDGET_RELEASE_NOTES.md) · [小组件配置](docs/CONFIGURABLE_WIDGETS.md)。照片问题的历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](docs/WIDGET_PHOTO_INVESTIGATION.md)，保留的可选诊断代码及启用方式见 [WidgetDiagnostics](native/WidgetDiagnostics/README.md)。
 
 ## 界面预览
 
@@ -23,7 +23,7 @@ Public repository: https://github.com/kevin3627713/session-camera
 ## 使用
 
 1. 下载 [Releases](https://github.com/kevin3627713/session-camera/releases) 的 `session-camera-unsigned.ipa`，或从 [Actions](https://github.com/kevin3627713/session-camera/actions) 下载构建产物。
-2. 使用你自己的签名方式重新签名后安装。编译和打包不需要开发者证书；未签名 IPA 仍需有效签名才能在普通 iPhone 上运行。
+2. 使用你自己的签名方式重新签名后安装。0.3.5 须保留并签署 SessionWidgets.appex 和 SessionPhotoBridge.appex。沿用原签名身份与包名映射覆盖升级。编译和打包不需要开发者证书；未签名 IPA 仍需有效签名才能在普通 iPhone 上运行。
 3. 首次运行允许相机、照片访问。照片推荐选择「有限访问」；新创建的资产自动包含在有限访问范围内。麦克风只在首次录制视频时申请。
 4. 拍照后，点击左下角缩略图，仅查看本次内容。编辑可裁剪、旋转、调整曝光/对比度/饱和度或黑白。
 5. 切到后台、锁屏再返回会保留同一相册；从任务切换器划掉应用后重开，或系统终止进程后重新启动，才新建空会话。系统照片始终保留。

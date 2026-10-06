@@ -1,6 +1,6 @@
-# 借拍 0.3.4：可编辑样式与随机相册
+# 借拍 0.3.5：可编辑样式、随机相册与后台照片中转
 
-在 experiment/transparent-widgets-ios18 分支继续开发。机主已确认 0.3.2 在 iOS 18.7.8 的照片组件正常显示。0.3.4 保留单张高清加载，调用系统照片小组件使用的建议裁剪接口，只移动取景位置，并增加系统照片跳转选项。诊断沿用显式编译开关，不出现在正常 IPA 中。历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)，诊断启用见 [WidgetDiagnostics](../native/WidgetDiagnostics/README.md)。本版仍是同一个主应用、同一个小组件扩展。
+在 experiment/widget-direct-photos-ios18 分支继续开发，基于此前开发与 URL 派发研究代码。机主已确认 0.3.2 在 iOS 18.7.8 的照片组件正常显示。单张高清加载、系统建议取景及五种样式沿用 0.3.4；0.3.5 接入后台 Share 中转，点击系统照片选项时不经借拍主应用。诊断沿用显式编译开关，不出现在正常 IPA 中。历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)，诊断启用见 [WidgetDiagnostics](../native/WidgetDiagnostics/README.md)。同一个主应用包含原 WidgetKit 扩展和新增照片中转扩展。
 
 ## 原生编辑小组件
 
@@ -24,9 +24,11 @@
 
 在原生编辑面板里可以改成“打开借拍”，这时使用完整区域的启动链接。所有尺寸均关闭额外内容边距，避免边缘成为未覆盖的默认启动区域。原生长按编辑和拖动仍由系统处理。
 
-0.3.4 增加“在系统照片中打开”：照片样式的链接携带当前显示图片的资产 ID，经借拍转交给系统照片。只有点击时才做 PhotoKit 的 cloudIdentifierMappings / localIdentifierMappings，并核对双向映射；完整 PHCloudIdentifier.stringValue 编码为 photos-navigation://asset?cloud-identifier=…，不截短为 UUID。缺失、隐藏或权限被撤销的照片会报错，不改开其他图片。系统接收链接不等于应用能验证系统最终选中了哪张图。非照片样式和没有成功加载图片的占位页不使用此跳转。
+0.3.5 的“在系统照片中打开”使用 Button / OpenWidgetPhoto 后台意图，参数固定为时间线当前显示的资产 ID 和该组件的独立编号。小组件在点击时做 PhotoKit 权限、非隐藏资产与双向云标识映射校验，通过私有 NSExtension 将资产 ID、完整云标识及随机请求标识传给内置 Share 扩展。Share 再独立校验同一资产与映射，通过 LSApplicationWorkspace 派发 photos-navigation://asset?cloud-identifier=…，随后完成扩展请求。全程不经过主应用或网页，不截短 PHCloudIdentifier.stringValue。
 
-转交可能短暂显示借拍；在引导式访问锁定借拍期间，系统可能阻止跨应用跳转。“借拍被打开 → 开启引导式访问”的快捷指令自动化也可能影响此选项。默认仍是不打开应用。
+扩展标识从实际嵌入的 SessionPhotoBridge.appex/Info.plist 读取，支持重签工具独立改写标识；未新增 App Groups。成功回传必须匹配本次请求标识。完成、取消、中断与 15 秒超时均结束请求并释放回调，处理请求 UUID 晚于超时返回的情况。扩展缺失、资产不可访问或系统拒绝会在当前组件上显示简短提示；不会改开其他图片或启动借拍。提示按独立编号和资产隔离，旧请求不会覆盖新请求结果。失败提示在 90 秒后过期，消失时间仍受 WidgetKit 刷新调度约束。非照片样式和未加载图片的占位页仍不跳转。
+
+重签时必须保留并签署 SessionWidgets.appex 与 SessionPhotoBridge.appex，沿用原 App 身份覆盖安装即可；已有 photos 点击设置沿用新行为，不需删掉小组件。中转扩展使用 FALSEPREDICATE，避免成为普通分享菜单入口。相机继续支持旧 sessioncamera://photos 链接，但新的组件按钮不产生该链接。引导式访问期间跨应用跳转仍由系统决定。默认点击仍是不打开应用。
 
 ## 不显示借拍界面的 URL 派发研究（2026-10-06）
 
@@ -57,11 +59,11 @@
 
 后台主应用路线使用 `LiveActivityIntent`，按照[苹果交互式小组件文档](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities) 强制在主应用进程执行，`openAppWhenRun=false` 使其不请求显示主界面。结果也说明：后台执行资格不等于打开另一个应用的资格。失败结论仅适用于本次调用和系统，不能推导所有私有调用组合都不可用。
 
-Share 桥接有可行的模拟器证据，但尚未接入生产。接入时可以保持同一个借拍 IPA 和同一个桌面小组件扩展，额外嵌入一个 Share `.appex`，无需单独安装另一个 App，也无需为了 URL 传递增加 App Groups。它会新增需要签名的 bundle / App ID；这与三个已安装 App 的限制是不同配额，见 [AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)。自签工具必须保留并签署两个扩展；扩展标识要从重签后的父 bundle 动态计算，不能沿用实验中的硬编码标识。
+以上是生产接入前的研究证据。0.3.5 现已独立接入同一 IPA 内的 Share `.appex`，无需单独安装另一个 App，也无需为了 URL 传递增加 App Groups。它会新增需要签名的 bundle / App ID；这与三个已安装 App 的限制是不同配额，见 [AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)。自签工具必须保留并签署两个扩展；产品代码直接读取重签后的实际兄弟扩展标识。
 
-正式接入还应保留现有权限、非隐藏资产和双向标识映射校验，只打开小组件当前显示的那一张照片；不能在派发失败时静默改开图库或启动借拍。需要在机主的未越狱 iOS 18.7.8 上验证签名后的扩展发现、指定图片最终显示、冷启动 / 已启动 Photos 行为，以及没有借拍前台界面。模拟器使用临时合成照片和临时 TCC 授权，不等于免费账号真机签名验证。
+产品代码保留权限、非隐藏资产和双向标识映射校验，只打开小组件当前显示的那张照片，失败不会静默改开图库或启动借拍。新增 native/WidgetPhotoBridgeTests 用实际主屏幕组件执行生产中转代码，关闭包含应用，使用独立改写的 Share 标识，核对冷启动 / 后台 Photos 的目标日期与时间，以及主应用保持 notRunning。机主未越狱 iOS 18.7.8 的自签行为仍需真机验收；模拟器使用临时合成照片和临时 TCC 授权，不等于免费账号真机签名验证。
 
-实验的 Share 回调为了保留观察窗口没有实现产品级请求收尾。正式接入还需完成成功 / 失败的扩展请求回传与释放，处理重签后的扩展标识，并避免将中转扩展暴露成不必要的分享菜单入口。这些生产接入工作尚未做，实验工程不能直接当成借拍新版本发布。
+原始研究 Share 回调为保留观察窗口没有实现请求收尾，仍单独保留用于复现；生产 IPA 使用 ios/SessionPhotoBridge 和 ios/SessionWidgets/PhotoBridgeClient，补齐上述生命周期处理。生产中转测试日志只在 WIDGET_BRIDGE_TEST 中编译，普通 IPA 明确检查不含该标记。
 
 ## 随机相册照片
 

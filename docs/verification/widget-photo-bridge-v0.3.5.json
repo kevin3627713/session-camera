@@ -1,0 +1,16 @@
+{
+  "version": "0.3.5",
+  "build": "10",
+  "productionSourceCommit": "4d51d18e841e5442ff03057c62940f9d12c76073",
+  "buildRun": 37501492244,
+  "photoRun": 37501492364,
+  "ipaBytes": 6689239,
+  "ipaSHA256": "e0220e434a51b81797867e3d800fafb75cbe923e22aaa2e3e76ef0d008c39227",
+  "actualWidgetProductionBridgeVerified": false,
+  "firstUITestRun": 37498668813,
+  "firstUITestFailure": "Widget gallery showed no test widget; no dispatch attempted",
+  "followupUITestRun": 37501492266,
+  "followupConclusion": "failure",
+  "ownerInstruction": "Deliver the IPA; do not continue complex verification",
+  "deviceValidation": "Owner iOS 18.7.8 self-signed test pending"
+}

@@ -1,3 +1,23 @@
+# 借拍 0.3.5：从小组件直接打开系统照片
+
+“在系统照片中打开”改为小组件的后台 AppIntent，通过 IPA 内的 Share 扩展派发系统照片链接。借拍主应用不参与此路径，也不需要浏览器中转。已有小组件选中的 photos 点击行为会沿用新实现；五种样式、相册 / 文件夹、独立随机序列、间隔与默认不打开应用继续保留。
+
+只传递当前显示照片的资产 ID、完整云标识与随机请求标识。小组件和中转扩展分别核对照片权限、非隐藏资产与双向标识映射。成功完成扩展请求，取消、中断与 15 秒超时会释放回调；旧请求 UUID 晚到仍可取消。失败时在当前照片组件显示简短提示，不改开其他照片，不启动借拍作为替代。提示按组件编号和当前资产隔离。
+
+版本 0.3.5 / build 10。相机 App 和原 WidgetKit 扩展保持原标识，新增 SessionPhotoBridge.appex，仍打包在同一个借拍 IPA，不需增加一个独立安装的 App。签名工具须保留并签署 SessionWidgets.appex、SessionPhotoBridge.appex；沿用之前的签名身份和包名映射覆盖安装。中转根据嵌入扩展的实际 Info.plist 识别重签后的标识，不依赖硬编码后缀；不增加 App Groups。中转扩展不作为普通分享菜单入口展示。
+
+高清加载和 PHAsset.suggestedCropForTargetSize: 建议取景沿用 0.3.4，只移动窗口，保留放大程度。切后台继续保留同一相机会话。普通 IPA 不编译照片诊断、桥接测试日志或合成测试图。
+
+真机验收：覆盖升级后长按照片小组件 → 编辑小组件 → 点击行为选择“在系统照片中打开”，关闭借拍，再点击图片；检查直接进入系统照片、所选照片与组件显示一致，借拍没有前台闪现。再从照片返回主屏重复点击，检查已在后台的 Photos。默认不打开应用和打开借拍选项照常使用。iOS 18.7.8 的免费账号签名、私有接口兼容和实际主屏显示仍以真机结果为准。
+
+安装包来自源码 4d51d18e841e5442ff03057c62940f9d12c76073 的[完整构建](https://github.com/kevin3627713/session-camera/actions/runs/37501492244)。24 项共享 Swift 测试、18 项透明描述符检查、9 项裁剪桥接检查、2 项 Flutter 测试，以及普通版 / 诊断版编译和意图元数据检查通过。[照片专项](https://github.com/kevin3627713/session-camera/actions/runs/37501492364)普通模式 [45 项](verification/widget-photos-ios18.6-v0.3.5.json)、诊断模式 [49 项](verification/widget-photo-diagnostics-ios18.6-v0.3.5.json)均通过。本地重新检查了下载成品的 ZIP、两个 arm64 扩展、版本、权限、后台意图和调试代码排除。
+
+生产桥接的实际主屏自动化尚未验证通过：首次运行在系统图库找不到测试小组件，未调用跳转；追加注册日志的运行也未通过。机主要求直接交付安装包，不继续复杂自动化验证。此前独立研究已有 iOS 18.6 的 Share 派发与主应用不运行证据，见[研究记录](CONFIGURABLE_WIDGETS.md)。本发行是供 iOS 18.7.8 自签真机测试的候选版，不将编译或普通 PhotoKit 宿主测试当成生产桥接的真机验证。
+
+[下载 0.3.5 未签名 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.5/session-camera-unsigned.ipa) · [候选发行页](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.5)。安装包 6,689,239 字节，SHA-256：e0220e434a51b81797867e3d800fafb75cbe923e22aaa2e3e76ef0d008c39227。主应用及两个扩展版本均为 0.3.5 / build 10。
+
+---
+
 # 借拍 0.3.4：系统建议取景与照片跳转
 
 本版在当前照片上调用 PHAsset.suggestedCropForTargetSize:，与 iOS 18.2 系统 PhotosReliveWidget 的取图路径一致。桥接核对 CGRect / CGSize 签名后调用，并捕获 Objective-C 异常；返回原图像素坐标。只采用推荐位置来平移原有 aspect-fill 窗口，保持窗口宽高与放大程度不变。接口不可用或返回异常、空、越界数据时回到居中取景。系统没有有效分析信号时，成功返回的建议也可能居中。
