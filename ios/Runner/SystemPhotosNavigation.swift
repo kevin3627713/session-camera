@@ -64,9 +64,11 @@ enum SystemPhotosNavigation {
               !asset.isHidden else { throw Failure.missingAsset }
     }
 
-    @MainActor static func open(_ url: URL, assetID: String, completion: @escaping (Bool) -> Void) {
+    @MainActor static func open(_ url: URL, assetID: String, completion: @escaping @MainActor @Sendable (Bool) -> Void) {
         guard (try? checkAccess(assetID)) != nil, UIApplication.shared.applicationState == .active,
               UIApplication.shared.canOpenURL(url) else { completion(false); return }
-        UIApplication.shared.open(url, options: [:], completionHandler: completion)
+        UIApplication.shared.open(url, options: [:]) { accepted in
+            Task { @MainActor in completion(accepted) }
+        }
     }
 }

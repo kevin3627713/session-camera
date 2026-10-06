@@ -119,8 +119,8 @@ struct PhotoIntegrationApp: App {
             try require(crop.size == PhotoWidgetGeometry.crop(assetSize: assetSize, target: target).size,
                         "System recommendation preserves the current aspect-fill zoom")
             systemCropProbe = ["selector": "suggestedCropForTargetSize:", "sourceWidth": asset.pixelWidth,
-                "sourceHeight": asset.pixelHeight, "pixelCrop": NSStringFromCGRect(suggested),
-                "normalizedCrop": NSStringFromCGRect(crop), "elapsedMilliseconds": elapsed,
+                "sourceHeight": asset.pixelHeight, "pixelCrop": [suggested.minX, suggested.minY, suggested.width, suggested.height].map(Double.init),
+                "normalizedCrop": [crop.minX, crop.minY, crop.width, crop.height].map(Double.init), "elapsedMilliseconds": elapsed,
                 "fixture": "New synthetic asset; existing subject recognition is not asserted"]
             let key = PhotoImageCache.key(asset: asset, target: target, crop: crop)
             try require(PhotoImageCache.read(key: key, target: target) == data, "Final-quality JPEG survives beyond one timeline request")

@@ -22,9 +22,9 @@ import SwiftUI
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     if let controller = window?.rootViewController as? FlutterViewController {
       nativeChannel = FlutterMethodChannel(name: "session_camera/native", binaryMessenger: controller.binaryMessenger)
-      nativeChannel?.setMethodCallHandler { [weak self, weak controller] call, reply in
+      nativeChannel?.setMethodCallHandler { [weak self] call, reply in
         guard call.method == "openCamera" else { reply(FlutterMethodNotImplemented); return }
-        guard let self, let controller else { reply(FlutterError(code: "no_controller", message: "相机启动失败", details: nil)); return }
+        guard let self else { reply(FlutterError(code: "no_controller", message: "相机启动失败", details: nil)); return }
         // A photo widget launch should transfer to Photos before starting the
         // camera. If this bridge arrives first, routing can cover the camera.
         guard self.photoNavigationToken == nil else { reply(nil); return }
