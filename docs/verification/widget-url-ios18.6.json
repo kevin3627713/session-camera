@@ -1,0 +1,241 @@
+{
+  "sourceCommit": "b545aed020b67b0a33d4198d3c1a2a7c39281154",
+  "context": "Actual iOS 18 simulator home-screen widget; containing app terminated before taps",
+  "observedRoutes": [
+    {
+      "route": "DIRECT",
+      "photosForeground": false,
+      "hostForeground": false,
+      "hostState": 1
+    },
+    {
+      "route": "SENSITIVE",
+      "photosForeground": false,
+      "hostForeground": false,
+      "hostState": 1
+    },
+    {
+      "route": "SHARE",
+      "photosForeground": true,
+      "hostForeground": false,
+      "hostState": 1
+    },
+    {
+      "route": "MAIN BG",
+      "photosForeground": false,
+      "hostForeground": false,
+      "hostState": 2
+    }
+  ],
+  "allRoutesObserved": true,
+  "note": "Share bridge dispatched from an actual home-screen widget, launched Photos and selected the uniquely dated target one-up page without launching the containing app. Native Photos first-launch introduction obstructs the final image screenshot; target pixels and iOS 18.7.8 personal-team device remain unverified. Research prototype only; production unchanged.",
+  "runURL": "https://github.com/kevin3627713/session-camera/actions/runs/37482693075",
+  "environment": {
+    "os": "iOS 18.6",
+    "runtimeBuild": "22G86",
+    "device": "iPhone 16 Pro Simulator",
+    "signing": "ad hoc simulator; not a personal-team device profile",
+    "fixture": "Synthetic PhotoKit photo; real complete PHCloudIdentifier"
+  },
+  "dispatch": {
+    "DIRECT": {
+      "executingBundle": "com.kevin3627713.sessioncamera.urlprobe.widget",
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    },
+    "SENSITIVE": {
+      "executingBundle": "com.kevin3627713.sessioncamera.urlprobe.widget",
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    },
+    "SHARE": {
+      "executingBundle": "com.kevin3627713.sessioncamera.urlprobe.share",
+      "discoverySucceeded": true,
+      "requestStarted": true,
+      "hostCallbackInstalled": true,
+      "receivedInput": true,
+      "accepted": true,
+      "error": null,
+      "mainAppLaunchedDuringRoute": false
+    },
+    "MAIN BG": {
+      "executingBundle": "com.kevin3627713.sessioncamera.urlprobe",
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115,
+      "mainAppLaunchedDuringRoute": true,
+      "mainAppDidBecomeActiveDuringRoute": false
+    }
+  },
+  "initialObservation": {
+    "shareAfterScreenshot": "Photos black launch transition",
+    "correctAssetVisuallyVerified": false,
+    "screenshotTimestampUTC": "2026-10-06T15:03:13.398Z"
+  },
+  "scope": {
+    "productionChanged": false,
+    "userDeviceTested": false,
+    "earlierSetupFailuresCountAsDispatchFailures": false
+  },
+  "dispatchTrace": [
+    "2026-10-06 15:01:54.353 Df URLProbe[14234:b21b] (Foundation) SCURLPROBE host launch",
+    "2026-10-06 15:01:54.618 Df URLProbe[14234:b21b] (Foundation) SCURLPROBE host became active",
+    "2026-10-06 15:01:55.033 Df URLProbe[14234:b21b] (Foundation) SCURLPROBE synthetic fixture ready",
+    "2026-10-06 15:02:16.614 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE widget fixture resolved",
+    "2026-10-06 15:02:20.353 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE widget fixture resolved",
+    "2026-10-06 15:02:34.139 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=direct",
+    "2026-10-06 15:02:34.144 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=14243",
+    "2026-10-06 15:02:34.326 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+    "2026-10-06 15:02:39.814 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE widget fixture resolved",
+    "2026-10-06 15:02:51.809 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=sensitive",
+    "2026-10-06 15:02:51.810 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=sensitive bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=14243",
+    "2026-10-06 15:02:51.818 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+    "2026-10-06 15:02:57.181 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE widget fixture resolved",
+    "2026-10-06 15:03:10.202 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=share",
+    "2026-10-06 15:03:10.203 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=share bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=14243",
+    "2026-10-06 15:03:10.214 Df URLProbeWidget[14243:b263] (URLProbeWidget.debug.dylib) SCURLPROBE share discovery=1 error=(null)",
+    "2026-10-06 15:03:10.656 Df URLProbeShare[17058:d042] (URLProbeShare.debug.dylib) SCURLPROBE share callback installed=1",
+    "2026-10-06 15:03:12.034 Df URLProbeShare[17058:d054] (URLProbeShare.debug.dylib) SCURLPROBE share received input",
+    "2026-10-06 15:03:12.034 Df URLProbeShare[17058:d054] (URLProbeShare.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe.share pid=17058",
+    "2026-10-06 15:03:12.035 Df URLProbeWidget[14243:c62c] (URLProbeWidget.debug.dylib) SCURLPROBE share request started=1",
+    "2026-10-06 15:03:12.251 Df URLProbeShare[17058:d054] (URLProbeShare.debug.dylib) SCURLPROBE workspace accepted=1 error=(null)",
+    "2026-10-06 15:03:15.663 Df URLProbeWidget[14243:b263] (Foundation) SCURLPROBE widget fixture resolved",
+    "2026-10-06 15:03:19.706 Df URLProbe[17212:d1d3] (Foundation) SCURLPROBE host launch",
+    "2026-10-06 15:03:19.993 Df URLProbe[17212:d1d3] (Foundation) SCURLPROBE background-main intent bundle=com.kevin3627713.sessioncamera.urlprobe",
+    "2026-10-06 15:03:19.993 Df URLProbe[17212:d1d3] (URLProbe.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe pid=17212",
+    "2026-10-06 15:03:20.001 Df URLProbe[17212:d1d3] (URLProbe.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+    "2026-10-06 15:03:20.113 Df URLProbe[17212:d1d3] (Foundation) SCURLPROBE synthetic fixture ready"
+  ],
+  "intermediateSettledObservation": {
+    "sourceCommit": "761193f0d795d2f25f3b1697aa77fe6a3a496c89",
+    "context": "Actual iOS 18 simulator home-screen widget; containing app terminated before taps",
+    "observedRoutes": [
+      {
+        "route": "DIRECT",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "SENSITIVE",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "SHARE",
+        "photosForeground": true,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "MAIN BG",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 2
+      }
+    ],
+    "allRoutesObserved": true,
+    "note": "Foreground observations must be combined with dispatch.log. Method acceptance is not proof of the selected Photos asset.",
+    "runURL": "https://github.com/kevin3627713/session-camera/actions/runs/37484808830",
+    "photosEditButtonVisible": true,
+    "oneUpMainPagingViewVisible": true,
+    "containingAppStateAfterSettling": 1,
+    "correctSyntheticTargetVisuallyVerified": false,
+    "observedImage": "Simulator stock photo, October 9, 2009; selector mistakenly chose oldest library asset, corrected in a6a7e03",
+    "snapshot": "After SHARE_0_C86BE8B2-AF02-4CA8-85C2-578E71F32B9E.png"
+  },
+  "finalSettledVerification": {
+    "sourceCommit": "a6a7e0327e5ccee5666751c183e3558f54b913a6",
+    "context": "Actual iOS 18 simulator home-screen widget; containing app terminated before taps",
+    "observedRoutes": [
+      {
+        "route": "DIRECT",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "SENSITIVE",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "SHARE",
+        "photosForeground": true,
+        "hostForeground": false,
+        "hostState": 1
+      },
+      {
+        "route": "MAIN BG",
+        "photosForeground": false,
+        "hostForeground": false,
+        "hostState": 2
+      }
+    ],
+    "allRoutesObserved": true,
+    "note": "Foreground observations must be combined with dispatch.log. Method acceptance is not proof of the selected Photos asset.",
+    "runURL": "https://github.com/kevin3627713/session-camera/actions/runs/37487201411",
+    "expectedTarget": {
+      "creationDateEpoch": 1700000000,
+      "color": "systemRed",
+      "text": "URL ROUTE TARGET"
+    },
+    "decoy": {
+      "creationDateEpoch": 1700000060,
+      "color": "systemBlue",
+      "text": "DECOY PHOTO"
+    },
+    "selectedPhotoAccessibility": {
+      "pagingView": "OneUpMainPagingView",
+      "dateLabel": "November 14, 2023",
+      "timeLabel": "10:13 PM",
+      "chooserValue": "Photo 7 of 8",
+      "editVisible": true
+    },
+    "correctAssetVerifiedByUniqueCreationDateAndPageMetadata": true,
+    "correctAssetPixelsVisuallyVerified": false,
+    "foregroundContainingApp": false,
+    "containingAppLaunchedDuringShareRoute": false,
+    "overlay": "Native Photos first-launch What\u2019s New in Photos / Continue introduction obstructs the image screenshot",
+    "dispatchTrace": [
+      "2026-10-06 15:30:04.515 Df URLProbe[7892:750b] (Foundation) SCURLPROBE host launch",
+      "2026-10-06 15:30:04.842 Df URLProbe[7892:750b] (Foundation) SCURLPROBE host became active",
+      "2026-10-06 15:30:05.350 Df URLProbe[7892:750b] (Foundation) SCURLPROBE synthetic fixture ready",
+      "2026-10-06 15:30:31.485 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000",
+      "2026-10-06 15:30:36.683 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000",
+      "2026-10-06 15:30:43.755 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=direct",
+      "2026-10-06 15:30:43.757 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=7906",
+      "2026-10-06 15:30:43.866 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+      "2026-10-06 15:30:49.324 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000",
+      "2026-10-06 15:31:01.976 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=sensitive",
+      "2026-10-06 15:31:01.976 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=sensitive bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=7906",
+      "2026-10-06 15:31:02.013 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+      "2026-10-06 15:31:07.399 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000",
+      "2026-10-06 15:31:20.232 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE AppIntent perform bundle=com.kevin3627713.sessioncamera.urlprobe.widget route=share",
+      "2026-10-06 15:31:20.233 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE dispatch route=share bundle=com.kevin3627713.sessioncamera.urlprobe.widget pid=7906",
+      "2026-10-06 15:31:20.286 Df URLProbeWidget[7906:7577] (URLProbeWidget.debug.dylib) SCURLPROBE share discovery=1 error=(null)",
+      "2026-10-06 15:31:20.693 Df URLProbeShare[9704:89aa] (URLProbeShare.debug.dylib) SCURLPROBE share callback installed=1",
+      "2026-10-06 15:31:21.874 Df URLProbeShare[9704:89b1] (URLProbeShare.debug.dylib) SCURLPROBE share received input",
+      "2026-10-06 15:31:21.875 Df URLProbeShare[9704:89b1] (URLProbeShare.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe.share pid=9704",
+      "2026-10-06 15:31:21.875 Df URLProbeWidget[7906:7a21] (URLProbeWidget.debug.dylib) SCURLPROBE share request started=1",
+      "2026-10-06 15:31:22.044 Df URLProbeShare[9704:89b1] (URLProbeShare.debug.dylib) SCURLPROBE workspace accepted=1 error=(null)",
+      "2026-10-06 15:31:25.687 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000",
+      "2026-10-06 15:31:51.587 Df URLProbe[10322:9229] (Foundation) SCURLPROBE host launch",
+      "2026-10-06 15:31:51.921 Df URLProbe[10322:9229] (Foundation) SCURLPROBE background-main intent bundle=com.kevin3627713.sessioncamera.urlprobe",
+      "2026-10-06 15:31:51.921 Df URLProbe[10322:9229] (URLProbe.debug.dylib) SCURLPROBE dispatch route=direct bundle=com.kevin3627713.sessioncamera.urlprobe pid=10322",
+      "2026-10-06 15:31:51.939 Df URLProbe[10322:9229] (URLProbe.debug.dylib) SCURLPROBE workspace accepted=0 error=Error Domain=LSApplicationWorkspaceErrorDomain Code=115 \"Unable to launch. See logs for more detail.\" UserInfo={NSDebugDescription=Unable to launch. See logs for more detail., _LSLine=271, _LSFunction=-[_LSSpringBoardCall(Private) callSpringBoardWithCompletionHandler:]_block_invoke}",
+      "2026-10-06 15:31:52.159 Df URLProbe[10322:9229] (Foundation) SCURLPROBE synthetic fixture ready",
+      "2026-10-06 15:31:58.559 Df URLProbeWidget[7906:7577] (Foundation) SCURLPROBE widget fixture resolved creationDate=1700000000"
+    ],
+    "screenshot": {
+      "path": "widget-url-ios18.6-share-onboarding.png",
+      "sha256": "4c5eef437276bd2b5e98c2beb6737bbd6912fdea103aecd5a7900d620eacb648",
+      "timestampUTC": "2026-10-06T15:31:45.726000+00:00",
+      "kind": "Original exported XCTest After SHARE attachment"
+    }
+  }
+}

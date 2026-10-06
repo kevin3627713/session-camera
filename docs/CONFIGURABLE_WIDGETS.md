@@ -28,6 +28,41 @@
 
 转交可能短暂显示借拍；在引导式访问锁定借拍期间，系统可能阻止跨应用跳转。“借拍被打开 → 开启引导式访问”的快捷指令自动化也可能影响此选项。默认仍是不打开应用。
 
+## 不显示借拍界面的 URL 派发研究（2026-10-06）
+
+实验保存在 `research/widget-direct-photos-url-ios18` 分支，基于 0.3.4 的开发分支创建。`native/WidgetURLProbe` 是独立测试宿主；Ruby 脚本在 build 目录生成自己的 Xcode 工程，实际运行桌面 WidgetKit 的 Button / AppIntent。它没有加入借拍的生产工程或 IPA，主应用、生产小组件、版本号和既有发行包均未改变。
+
+普通 `Link` / `widgetURL` 由 WidgetKit 激活其所属应用，再把 URL 交给该应用。苹果的 [OpenURLIntent 文档](https://developer.apple.com/documentation/appintents/openurlintent) 明确只支持 universal link，不支持 `photos-navigation` 这样的自定义 scheme。[Apple DTS 的说明](https://developer.apple.com/forums/thread/762586) 与此一致。系统“照片”的小组件属于 Photos 应用，因此其默认激活路径不能证明第三方小组件也能直接打开 Photos。
+
+用 HTTPS 页面中转可以把第一站改成浏览器，但它仍需要第二次请求打开 Photos，不能省去浏览器界面或保证没有确认提示。借拍内部的 WKWebView / 浏览器壳仍在借拍的进程和界面里，也不能解决启动借拍的问题。本次优先验证不依赖网页的本地路径。
+
+[LiveContainer 的固定版本源码](https://github.com/LiveContainer/LiveContainer/blob/4dbe0f9a626de801184a42c0be8d2cb105058e3d/LaunchAppExtension/LaunchAppExtension.swift) 显示，其 AppIntent 先通过私有 NSExtension 启动自己的 Share 扩展，并在 NSExtensionItem.userInfo 中传递 URL；[Share 扩展](https://github.com/LiveContainer/LiveContainer/blob/4dbe0f9a626de801184a42c0be8d2cb105058e3d/ShareExtension/main.m) 再通过 LSApplicationWorkspace 派发。实验参考这一调用顺序，独立实现最小桥接，没有引入 LiveContainer 的 App Groups、UI 或客体应用加载代码。
+
+[实际桌面实验 37482693075](https://github.com/kevin3627713/session-camera/actions/runs/37482693075) 在 iOS 18.6（22G86）、iPhone 16 Pro 模拟器中完成。测试先创建真实 PhotoKit 合成照片、取得完整云端标识并添加中尺寸桌面小组件，然后终止主应用。以下四个按钮均有 AppIntent 的实际执行日志，结果不是从普通应用宿主推断：
+
+| 派发路径 | 系统结果 | 测试主应用 |
+| --- | --- | --- |
+| 小组件 AppIntent → openURL:withOptions:error: | 拒绝，LSApplicationWorkspaceErrorDomain / 115 | 未运行 |
+| 小组件 AppIntent → openSensitiveURL:withOptions:error: | 拒绝，同样为 115 | 未运行 |
+| 小组件 AppIntent → 私有 NSExtension → Share 扩展 → openURL:withOptions:error: | 接受；Photos 进入前台 | 全程未运行 |
+| LiveActivityIntent → 主应用后台进程 → openURL:withOptions:error: | 拒绝，同样为 115 | 后台启动，无进入前台的生命周期日志 |
+
+第三条路径实际记录到了 Share 扩展发现成功、请求启动、私有宿主回调收到输入、LSApplicationWorkspace 接受，以及 Photos 前台状态。初次截图是 Photos 的黑色启动过渡页，因此这一轮证明的是跨进程派发和未启动主应用，还不能证明指定图片完成显示。[验证数据](verification/widget-url-ios18.6.json) 明确保留这一限制。前面三次 CI 失败发生在安装配置或系统图库的 UI 自动化阶段，尚未调用派发接口，不计作接口失败。
+
+后续 [37484808830](https://github.com/kevin3627713/session-camera/actions/runs/37484808830) 等待 Photos 的 Edit 按钮后已看到真实单张大图，但试验选择器误将模拟器自带的 2009 年旧照片当成“更早的红色测试图”。这一轮只计作进入单张照片页面，未计作合成目标成功。选择器在 a6a7e03 修正为明确匹配合成目标的唯一 creationDate。
+
+最终 [37487201411](https://github.com/kevin3627713/session-camera/actions/runs/37487201411) 的四条路线全部实际执行，结果与上表一致。小组件解析目标的 creationDate 为 1700000000；Share 跳转后等待单张大图控件，再观察 15 秒，Photos 的 OneUpMainPagingView 对应“November 14, 2023 / 10:13 PM / Photo 7 of 8”，与红色目标一致。蓝色对照图为一分钟后的 10:14 PM，六张系统样片为其他日期。主应用状态仍为 notRunning，Share 路线期间没有主应用启动或进入前台的日志。因此当前证据已支持指定目标的页面定位，而不是只唤起 Photos。
+
+这台新建模拟器的 Photos 同时弹出了系统“What's New in Photos / Continue”首次启动介绍页，[原始截图](verification/widget-url-ios18.6-share-onboarding.png) 被该页遮挡。无遮挡的目标像素还未人工验收；验证 JSON 将页面标识核对成功与像素未验收分别记录，不能将 CI 绿色状态理解为所有图片显示、签名或真机行为都已通过。
+
+后台主应用路线使用 `LiveActivityIntent`，按照[苹果交互式小组件文档](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities) 强制在主应用进程执行，`openAppWhenRun=false` 使其不请求显示主界面。结果也说明：后台执行资格不等于打开另一个应用的资格。失败结论仅适用于本次调用和系统，不能推导所有私有调用组合都不可用。
+
+Share 桥接有可行的模拟器证据，但尚未接入生产。接入时可以保持同一个借拍 IPA 和同一个桌面小组件扩展，额外嵌入一个 Share `.appex`，无需单独安装另一个 App，也无需为了 URL 传递增加 App Groups。它会新增需要签名的 bundle / App ID；这与三个已安装 App 的限制是不同配额，见 [AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)。自签工具必须保留并签署两个扩展；扩展标识要从重签后的父 bundle 动态计算，不能沿用实验中的硬编码标识。
+
+正式接入还应保留现有权限、非隐藏资产和双向标识映射校验，只打开小组件当前显示的那一张照片；不能在派发失败时静默改开图库或启动借拍。需要在机主的未越狱 iOS 18.7.8 上验证签名后的扩展发现、指定图片最终显示、冷启动 / 已启动 Photos 行为，以及没有借拍前台界面。模拟器使用临时合成照片和临时 TCC 授权，不等于免费账号真机签名验证。
+
+实验的 Share 回调为了保留观察窗口没有实现产品级请求收尾。正式接入还需完成成功 / 失败的扩展请求回传与释放，处理重签后的扩展标识，并避免将中转扩展暴露成不必要的分享菜单入口。这些生产接入工作尚未做，实验工程不能直接当成借拍新版本发布。
+
 ## 随机相册照片
 
 1. 在借拍右上角锁图标 → 设置 → 照片小组件 → 权限与刷新，完成机主 Face ID / Touch ID / 设备密码验证。
