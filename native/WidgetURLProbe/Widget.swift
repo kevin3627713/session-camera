@@ -10,7 +10,9 @@ struct ProbeProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<ProbeEntry>) -> Void) { completion(Timeline(entries: [makeEntry()], policy: .after(Date().addingTimeInterval(60)))) }
     func makeEntry() -> ProbeEntry {
         let options = PHFetchOptions()
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        // Target the older red photo; the newer blue decoy distinguishes a
+        // selected asset from simply opening the most recent library photo.
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         options.fetchLimit = 1
         guard let asset = PHAsset.fetchAssets(with: .image, options: options).firstObject,
               let result = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: [asset.localIdentifier])[asset.localIdentifier],

@@ -21,13 +21,21 @@ import Photos
                 label.text = "Photos authorization required"
                 return
             }
-            let image = UIGraphicsImageRenderer(size: CGSize(width: 1000, height: 1000)).image { context in
-                UIColor.systemRed.setFill()
-                context.fill(CGRect(x: 0, y: 0, width: 1000, height: 1000))
-                ("URL ROUTE PROBE" as NSString).draw(at: CGPoint(x: 50, y: 450), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 70), .foregroundColor: UIColor.white])
+            let fixtures: [(UIColor, String)] = [(.systemRed, "URL ROUTE TARGET"), (.systemBlue, "DECOY PHOTO")]
+            let images = fixtures.map { color, text in
+                UIGraphicsImageRenderer(size: CGSize(width: 1000, height: 1000)).image { context in
+                    color.setFill()
+                    context.fill(CGRect(x: 0, y: 0, width: 1000, height: 1000))
+                    (text as NSString).draw(at: CGPoint(x: 50, y: 450), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 70), .foregroundColor: UIColor.white])
+                }
             }
             do {
-                try await PHPhotoLibrary.shared().performChanges { PHAssetChangeRequest.creationRequestForAsset(from: image) }
+                try await PHPhotoLibrary.shared().performChanges {
+                    for (index, image) in images.enumerated() {
+                        let request = PHAssetChangeRequest.creationRequestForAsset(from: image)
+                        request.creationDate = Date(timeIntervalSince1970: 1_700_000_000 + Double(index * 60))
+                    }
+                }
                 label.text = "Fixture ready"
                 NSLog("SCURLPROBE synthetic fixture ready")
             } catch { label.text = "Fixture failed: \(error.localizedDescription)" }

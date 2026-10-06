@@ -62,6 +62,12 @@ final class ProbeUITests: XCTestCase {
                 spring.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame.minX + frame.width*x, dy: frame.minY + frame.height*y)).tap()
             }
             let enteredPhotos = photos.wait(for: .runningForeground, timeout: 15)
+            if enteredPhotos {
+                // Foreground state can precede the Photos window. Observe after
+                // the cold-start transition instead of capturing its black launch.
+                _ = photos.buttons["Edit"].waitForExistence(timeout: 30)
+                print("SCURLPROBE UI settled route=\(route) photosForeground=\(photos.state == .runningForeground) hostState=\(host.state.rawValue) editVisible=\(photos.buttons["Edit"].exists)")
+            }
             let openedHost = host.state == .runningForeground
             print("SCURLPROBE UI route=\(route) photosForeground=\(enteredPhotos) hostForeground=\(openedHost) hostState=\(host.state.rawValue)")
             print("SCURLPROBE UI tree \(route): \(enteredPhotos ? photos.debugDescription : spring.debugDescription)")
