@@ -1,0 +1,26 @@
+name: Research widget background URL dispatch
+on:
+  push:
+    branches: ['research/widget-direct-photos-url-ios18']
+    paths: ['native/WidgetURLProbe/**', 'scripts/*widget_url_probe*', 'scripts/probe_widget_url_dispatch.sh', '.github/workflows/widget-url-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: widget-url-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run actual iOS 18 widget button experiment
+        timeout-minutes: 20
+        run: bash scripts/probe_widget_url_dispatch.sh
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: widget-url-probe-${{ github.run_number }}
+          path: artifacts/widget-url-probe/
+          if-no-files-found: error
