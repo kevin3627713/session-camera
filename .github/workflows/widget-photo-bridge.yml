@@ -1,0 +1,30 @@
+name: Verify direct Photos widget bridge
+on:
+  push:
+    branches: ['experiment/widget-direct-photos-ios18']
+    paths: ['ios/SessionPhotoBridge/**', 'ios/Shared/**', 'ios/SessionWidgets/**', 'native/WidgetPhotoBridgeTests/**', 'scripts/*widget_photo_bridge*', '.github/workflows/widget-photo-bridge.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: widget-photo-bridge-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  bridge:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test production bridge from an actual iOS 18 home-screen widget
+        timeout-minutes: 20
+        run: bash scripts/test_widget_photo_bridge.sh
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: widget-photo-bridge-${{ github.run_number }}
+          path: |
+            artifacts/widget-photo-bridge/*.log
+            artifacts/widget-photo-bridge/*.json
+            artifacts/widget-photo-bridge/*.png
+            artifacts/widget-photo-bridge/screenshots/
+          if-no-files-found: error

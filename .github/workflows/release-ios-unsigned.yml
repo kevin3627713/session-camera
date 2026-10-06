@@ -2,7 +2,7 @@ name: Build unsigned iOS IPA
 
 on:
   push:
-    branches: [main, 'experiment/transparent-widgets-ios18']
+    branches: [main, 'experiment/transparent-widgets-ios18', 'experiment/widget-direct-photos-ios18']
     tags: ['v*']
   workflow_dispatch:
     inputs:

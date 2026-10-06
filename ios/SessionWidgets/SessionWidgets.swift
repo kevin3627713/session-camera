@@ -9,6 +9,7 @@ struct CameraWidgetEntry: TimelineEntry {
     var imageData: Data?
     var message: String?
     var assetID: String?
+    var instanceID: String?
 }
 
 struct CameraWidgetProvider: AppIntentTimelineProvider {
@@ -88,8 +89,11 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         if let timeline = WidgetPhotoDiagnostics.requestTimeline(configuration, now: now, data: imageData) { return timeline }
         WidgetPhotoDiagnostics.record("timeline-ready-one-image")
         #endif
+        let message = WidgetPhotoOpenStatus.message(instanceID: identity.id, assetID: picks[0].assetID, now: now)
+        let refresh = message == nil ? picks[1].date : min(picks[1].date, now.addingTimeInterval(90))
         return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
-            imageData: imageData, assetID: picks[0].assetID)], policy: .after(picks[1].date))
+            imageData: imageData, message: message, assetID: picks[0].assetID, instanceID: identity.id)],
+            policy: .after(refresh))
     }
 }
 
@@ -113,8 +117,8 @@ struct CameraWidgetView: View {
             if entry.tapBehavior == .camera {
                 Link(destination: URL(string: "sessioncamera://camera")!) { content }
             } else if entry.tapBehavior == .photos, entry.style == .photos,
-                      let id = entry.assetID, entry.imageData != nil, let url = PhotoWidgetLink.url(assetID: id) {
-                Link(destination: url) { content }
+                      let id = entry.assetID, entry.imageData != nil {
+                Button(intent: OpenWidgetPhoto(assetID: id, instanceID: entry.instanceID ?? id)) { content }
             } else {
                 // A full-size interactive control consumes the tap. Merely
                 // removing widgetURL would still open the containing app.

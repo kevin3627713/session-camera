@@ -22,14 +22,20 @@ sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 compiler_flags=(-swift-version 5 -D WIDGET_INTEGRATION_TEST)
 xcrun clang -fobjc-arc -isysroot "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
   -c ios/SessionWidgets/SystemPhotoCrop.m -o artifacts/system-photo-crop-simulator.o
+for source in ios/SessionWidgets/PhotoBridgeClient.m ios/Shared/PhotoBridgeProtocol.m; do
+  xcrun clang -fobjc-arc -isysroot "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
+    -c "$source" -o "artifacts/$(basename "$source" .m)-simulator.o"
+done
 if [[ "${WIDGET_PHOTO_DIAGNOSTICS:-0}" == "1" ]]; then
   compiler_flags+=(-D WIDGET_PHOTO_DIAGNOSTICS)
 fi
 xcrun swiftc "${compiler_flags[@]}" -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
-  -import-objc-header ios/SessionWidgets/SystemPhotoCrop.h artifacts/system-photo-crop-simulator.o \
+  -import-objc-header ios/SessionWidgets/SessionWidgets-Bridging-Header.h artifacts/system-photo-crop-simulator.o \
+  artifacts/PhotoBridgeClient-simulator.o artifacts/PhotoBridgeProtocol-simulator.o \
   -o "$app/WidgetPhotoIntegration" native/WidgetHookTests/PhotoIntegrationApp.swift \
   ios/SessionWidgets/WidgetOptions.swift ios/SessionWidgets/PhotoLibrarySource.swift \
   ios/SessionWidgets/SessionWidgets.swift \
+  ios/SessionWidgets/WidgetPhotoOpenIntent.swift ios/Shared/SystemPhotosAsset.swift \
   native/WidgetDiagnostics/PhotoWidgetDiagnostics.swift \
   native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift \
   native/SessionCore/Sources/WidgetCore/PhotoWidgetGeometry.swift ios/Runner/SystemPhotosNavigation.swift \

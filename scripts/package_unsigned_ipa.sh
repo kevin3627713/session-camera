@@ -18,19 +18,21 @@ if [[ -d "$package_dir/Payload/Runner.app/Frameworks" ]]; then
     codesign --force --sign - --preserve-metadata=identifier,entitlements "$framework"
   done < <(find "$package_dir/Payload/Runner.app/Frameworks" -type d -name '*.framework' -print0)
 fi
-extension_path="$package_dir/Payload/Runner.app/PlugIns/SessionWidgets.appex"
-if [[ ! -d "$extension_path" ]]; then
-  echo "Missing embedded SessionWidgets.appex; refusing to package a widget-less build." >&2
-  exit 1
-fi
-if [[ -d "$extension_path/Frameworks" ]]; then
-  while IFS= read -r -d '' framework; do
-    codesign --force --sign - --preserve-metadata=identifier,entitlements "$framework"
-  done < <(find "$extension_path/Frameworks" -type d -name '*.framework' -print0)
-fi
 # Ad-hoc signatures are placeholders for the user's re-signing tool, not an
 # Apple development certificate. Sign nested code before packaging the app.
-codesign --force --sign - --preserve-metadata=identifier,entitlements "$extension_path"
+for extension in SessionWidgets SessionPhotoBridge; do
+  extension_path="$package_dir/Payload/Runner.app/PlugIns/$extension.appex"
+  if [[ ! -d "$extension_path" ]]; then
+    echo "Missing embedded $extension.appex; refusing to package an incomplete build." >&2
+    exit 1
+  fi
+  if [[ -d "$extension_path/Frameworks" ]]; then
+    while IFS= read -r -d '' framework; do
+      codesign --force --sign - --preserve-metadata=identifier,entitlements "$framework"
+    done < <(find "$extension_path/Frameworks" -type d -name '*.framework' -print0)
+  fi
+  codesign --force --sign - --preserve-metadata=identifier,entitlements "$extension_path"
+done
 ipa_path="$PWD/$ipa_name"
 if [[ -e "$ipa_path" ]]; then rm "$ipa_path"; fi
 (cd "$package_dir" && zip -q -r "$ipa_path" Payload)

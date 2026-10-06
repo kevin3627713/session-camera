@@ -2,7 +2,7 @@ name: Verify widget Photos integration
 
 on:
   push:
-    branches: ['experiment/transparent-widgets-ios18']
+    branches: ['experiment/transparent-widgets-ios18', 'experiment/widget-direct-photos-ios18']
     paths:
       - 'native/WidgetHookTests/PhotoIntegrationApp.swift'
       - 'native/WidgetDiagnostics/**'
@@ -10,6 +10,9 @@ on:
       - 'ios/SessionWidgets/SessionWidgets.swift'
       - 'ios/SessionWidgets/WidgetOptions.swift'
       - 'ios/SessionWidgets/SystemPhotoCrop.*'
+      - 'ios/SessionWidgets/WidgetPhotoOpenIntent.swift'
+      - 'ios/SessionWidgets/PhotoBridgeClient.*'
+      - 'ios/Shared/**'
       - 'ios/Runner/SystemPhotosNavigation.swift'
       - 'native/SessionCore/Sources/WidgetCore/**'
       - 'scripts/test_widget_photos.sh'

@@ -58,6 +58,8 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         for marker in (b"WidgetPhotoDiagnostics", b"PhotoPipeline", "绘制测试通过".encode(), "照片请求完成".encode()):
             assert marker not in widget_executable, "Photo diagnostics leaked into the normal IPA"
     assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
+    assert definitions["actions"]["OpenWidgetPhoto"]["openAppWhenRun"] is False
+    assert {p["name"] for p in definitions["actions"]["OpenWidgetPhoto"]["parameters"]} == {"assetID", "instanceID"}
     styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
     assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}
     taps = next(item for item in definitions["enums"] if item["identifier"] == "WidgetTapBehavior")
@@ -75,6 +77,28 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     for selector in (b"getAllCurrentDescriptorsWithCompletion:", b"setTransparent:", b"setPreferredBackgroundStyle:"):
         assert selector in widget_executable, f"Missing widget hook selector: {selector!r}"
         assert selector not in executable, "Widget hook leaked into camera process"
-    assert len([name for name in archive.namelist() if name.startswith("Payload/Runner.app/PlugIns/") and name.endswith(".appex/Info.plist")]) == 1
+    bridge_root = "Payload/Runner.app/PlugIns/SessionPhotoBridge.appex/"
+    bridge_info = plistlib.loads(archive.read(bridge_root + "Info.plist"))
+    assert bridge_info["CFBundleIdentifier"] == info["CFBundleIdentifier"] + ".photosbridge"
+    assert bridge_info["CFBundleShortVersionString"] == info["CFBundleShortVersionString"]
+    assert bridge_info["CFBundleVersion"] == info["CFBundleVersion"]
+    assert bridge_info["MinimumOSVersion"] == "18.0"
+    assert bridge_info.get("NSPhotoLibraryUsageDescription")
+    extension = bridge_info["NSExtension"]
+    assert extension["NSExtensionPointIdentifier"] == "com.apple.share-services"
+    assert extension["NSExtensionPrincipalClass"] == "SessionPhotosBridgeController"
+    assert extension["NSExtensionContextClass"] == extension["NSExtensionContextHostClass"] == "NSExtensionContext"
+    assert extension["NSExtensionAttributes"]["NSExtensionActivationRule"] == "FALSEPREDICATE"
+    bridge = archive.read(bridge_root + bridge_info["CFBundleExecutable"])
+    assert bridge[:4] == bytes.fromhex("cffaedfe") and int.from_bytes(bridge[4:8], "little") == 0x0100000C
+    for selector in (b"_willPerformHostCallback:", b"openURL:withOptions:error:"):
+        assert selector in bridge
+        assert selector not in executable and selector not in widget_executable
+    for selector in (b"beginExtensionRequestWithInputItems:completion:", b"setRequestCompletionBlock:", b"setRequestCancellationBlock:"):
+        assert selector in widget_executable
+        assert selector not in executable
+    for binary in (executable, widget_executable, bridge):
+        assert b"SCBRIDGE" not in binary, "Bridge test instrumentation leaked into release"
+    assert len([name for name in archive.namelist() if name.startswith("Payload/Runner.app/PlugIns/") and name.endswith(".appex/Info.plist")]) == 2
     assert archive.testzip() is None
-print("IPA verified: camera + one arm64 WidgetKit extension, matching versions, isolated hook, URL, permissions and frameworks.")
+print("IPA verified: camera + arm64 WidgetKit and Photos bridge extensions, matching versions, isolated hooks, background action, permissions and frameworks.")
