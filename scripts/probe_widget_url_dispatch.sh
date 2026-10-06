@@ -19,7 +19,7 @@ for name, suffix, extra in [
     ('URLProbeUITests', '.uitests', {})
 ]:
     info = {'CFBundleIdentifier': 'com.kevin3627713.sessioncamera.urlprobe' + suffix,
-        'CFBundleExecutable': name, 'CFBundleName': name, 'CFBundleVersion': '1',
+        'CFBundleExecutable': name, 'CFBundleName': name, 'CFBundleDisplayName': 'URL Probe', 'CFBundleVersion': '1',
         'CFBundleShortVersionString': '1.0', 'CFBundleInfoDictionaryVersion': '6.0',
         'CFBundlePackageType': 'APPL' if name == 'URLProbe' else 'BNDL' if name.endswith('Tests') else 'XPC!',
         'MinimumOSVersion': '18.0', 'UIDeviceFamily': [1],
@@ -69,4 +69,17 @@ xcrun simctl spawn "$simulator_id" log show --last 15m --style compact \
 set -e
 tail -n 80 artifacts/widget-url-probe/ui-tests.log
 cat artifacts/widget-url-probe/dispatch.log
+python3 - <<'PY'
+import json, pathlib, re, os
+directory=pathlib.Path('artifacts/widget-url-probe')
+ui=(directory/'ui-tests.log').read_text()
+rows=[]
+for route,photos,host,state in re.findall(r'SCURLPROBE UI route=(.*?) photosForeground=(true|false) hostForeground=(true|false) hostState=(\d+)',ui):
+    rows.append({'route':route,'photosForeground':photos=='true','hostForeground':host=='true','hostState':int(state)})
+report={'sourceCommit':os.environ.get('GITHUB_SHA'),'context':'Actual iOS 18 simulator home-screen widget; containing app terminated before taps',
+        'observedRoutes':rows, 'allRoutesObserved':len(rows)==4,
+        'note':'Foreground observations must be combined with dispatch.log. Method acceptance is not proof of the selected Photos asset.'}
+(directory/'observations.json').write_text(json.dumps(report,indent=2)+'\n')
+print(json.dumps(report,indent=2))
+PY
 exit "$test_status"

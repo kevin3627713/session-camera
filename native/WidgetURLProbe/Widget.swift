@@ -53,7 +53,10 @@ struct ProbeIntent: AppIntent {
                 HStack {
                     Button("DIRECT", intent: ProbeIntent("direct", entry.url))
                     Button("SENSITIVE", intent: ProbeIntent("sensitive", entry.url))
+                }.font(.caption).buttonStyle(.borderedProminent)
+                HStack {
                     Button("SHARE", intent: ProbeIntent("share", entry.url))
+                    Button("MAIN BG", intent: BackgroundProbeIntent(entry.url))
                 }.font(.caption).buttonStyle(.borderedProminent)
             }.containerBackground(.black, for: .widget)
         }.configurationDisplayName("URL Probe").description("Synthetic Photos navigation research").supportedFamilies([.systemMedium])

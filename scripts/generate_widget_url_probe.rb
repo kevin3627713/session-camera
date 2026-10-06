@@ -23,14 +23,14 @@ make = lambda do |name, type, suffix, filenames|
   end
   target
 end
-host = make.call('URLProbe', :application, '', ['Host.swift'])
-widget = make.call('URLProbeWidget', :app_extension, '.widget', ['Widget.swift', 'Dispatch.m'])
+host = make.call('URLProbe', :application, '', ['Host.swift', 'BackgroundIntent.swift', 'Dispatch.m'])
+widget = make.call('URLProbeWidget', :app_extension, '.widget', ['Widget.swift', 'BackgroundIntent.swift', 'Dispatch.m'])
 share = make.call('URLProbeShare', :app_extension, '.share', ['Share.m', 'Dispatch.m'])
 tests = make.call('URLProbeUITests', :ui_test_bundle, '.uitests', ['UITests.swift'])
-widget.build_configurations.each do |c|
+[widget, host].each { |t| t.build_configurations.each do |c|
   c.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = File.join(root, 'native', 'WidgetURLProbe', 'Dispatch.h')
-  c.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
-end
+end }
+widget.build_configurations.each { |c| c.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES' }
 share.build_configurations.each { |c| c.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES' }
 tests.build_configurations.each { |c| c.build_settings['TEST_TARGET_NAME'] = 'URLProbe' }
 project.root_object.attributes['TargetAttributes'] = { tests.uuid => { 'TestTargetID' => host.uuid } }

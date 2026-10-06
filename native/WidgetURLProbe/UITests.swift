@@ -37,10 +37,11 @@ final class ProbeUITests: XCTestCase {
         host.terminate()
         XCUIDevice.shared.press(.home)
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
-        for route in ["DIRECT", "SENSITIVE", "SHARE"] {
+        for route in ["DIRECT", "SENSITIVE", "SHARE", "MAIN BG"] {
             XCUIDevice.shared.press(.home)
             let button = spring.buttons[route].firstMatch
             XCTAssertTrue(button.waitForExistence(timeout: 30), spring.debugDescription)
+            XCTAssertFalse(spring.staticTexts["NO FIXTURE"].exists, "Widget could not obtain its synthetic photo: \(spring.debugDescription)")
             let screenshot = XCTAttachment(screenshot: spring.screenshot())
             screenshot.name = "Before \(route)"
             screenshot.lifetime = .keepAlways
