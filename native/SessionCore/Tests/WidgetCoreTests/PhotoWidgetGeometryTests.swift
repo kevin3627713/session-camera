@@ -1,4 +1,5 @@
 import XCTest
+import CoreGraphics
 @testable import WidgetCore
 
 final class PhotoWidgetGeometryTests: XCTestCase {

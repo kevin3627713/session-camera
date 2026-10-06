@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 enum PhotoWidgetGeometry {
     /// Keep the largest possible aspect-fill window; only translate it.
