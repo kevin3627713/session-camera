@@ -66,6 +66,9 @@ final class ProbeUITests: XCTestCase {
                 // Foreground state can precede the Photos window. Observe after
                 // the cold-start transition instead of capturing its black launch.
                 _ = photos.buttons["Edit"].waitForExistence(timeout: 30)
+                // Photo navigation can finish after the first one-up controls
+                // appear. Keep observing before assessing the selected image.
+                Thread.sleep(forTimeInterval: 15)
                 print("SCURLPROBE UI settled route=\(route) photosForeground=\(photos.state == .runningForeground) hostState=\(host.state.rawValue) editVisible=\(photos.buttons["Edit"].exists)")
             }
             let openedHost = host.state == .runningForeground

@@ -10,9 +10,10 @@ struct ProbeProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<ProbeEntry>) -> Void) { completion(Timeline(entries: [makeEntry()], policy: .after(Date().addingTimeInterval(60)))) }
     func makeEntry() -> ProbeEntry {
         let options = PHFetchOptions()
-        // Target the older red photo; the newer blue decoy distinguishes a
-        // selected asset from simply opening the most recent library photo.
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        // The simulator already contains stock photos dated 2009. Restrict to
+        // our synthetic fixture instead of treating the oldest library asset
+        // as the older red target.
+        options.predicate = NSPredicate(format: "creationDate == %@", NSDate(timeIntervalSince1970: 1_700_000_000))
         options.fetchLimit = 1
         guard let asset = PHAsset.fetchAssets(with: .image, options: options).firstObject,
               let result = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: [asset.localIdentifier])[asset.localIdentifier],
@@ -24,7 +25,7 @@ struct ProbeProvider: TimelineProvider {
         url.scheme = "photos-navigation"
         url.host = "asset"
         url.queryItems = [URLQueryItem(name: "cloud-identifier", value: cloud.stringValue)]
-        NSLog("SCURLPROBE widget fixture resolved")
+        NSLog("SCURLPROBE widget fixture resolved creationDate=%.0f", asset.creationDate?.timeIntervalSince1970 ?? 0)
         return ProbeEntry(date: Date(), url: url.url?.absoluteString ?? "")
     }
 }
