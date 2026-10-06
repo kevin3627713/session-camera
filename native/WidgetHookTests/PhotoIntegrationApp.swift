@@ -71,6 +71,24 @@ struct PhotoIntegrationApp: App {
             let folder = PhotoLibrarySource.assetIDs(sourceID: "folder:" + folderID)
             try require(Set(folder) == [redID, blueID], "Folder includes nested albums and deduplicates photos")
             try require(!folder.contains(hiddenID) && !folder.contains(outsideID), "Hidden and unrelated photos excluded")
+            let selectionTime = Date()
+            let selectionIdentity = UUID().uuidString
+            let selected = PhotoLibrarySource.selection(sourceID: "folder:" + folderID, instanceID: selectionIdentity,
+                                                        minutes: 15, now: selectionTime)
+            try require(selected.map { folder.contains($0) } == true,
+                        "Lazy folder selection requests an asset inside its nested non-hidden albums")
+            let selectedAgain = PhotoLibrarySource.selection(sourceID: "folder:" + folderID, instanceID: selectionIdentity,
+                                                             minutes: 15, now: selectionTime.addingTimeInterval(1))
+            try require(selectedAgain == selected, "Folder selection survives a same-period reload without full photo enumeration")
+            let nextWindow = PhotoSchedule.window(instanceID: selectionIdentity, sourceID: "folder:" + folderID,
+                                                 minutes: 15, now: selectionTime)!.nextDate
+            let nextSelected = PhotoLibrarySource.selection(sourceID: "folder:" + folderID, instanceID: selectionIdentity,
+                                                            minutes: 15, now: nextWindow.addingTimeInterval(1))
+            try require(nextSelected != selected && nextSelected.map { folder.contains($0) } == true,
+                        "Folder advances to another asset despite duplicate membership across nested albums")
+            try require(PhotoLibrarySource.selection(sourceID: "folder:deleted-id", instanceID: selectionIdentity,
+                                                     minutes: 15, now: selectionTime) == nil,
+                        "Lazy folder selection does not reuse cached content for a deleted source")
             let catalog = PhotoLibrarySource.catalog()
             try require(catalog.contains { $0.id == "folder:" + folderID }, "Folder appears in native entity choices")
             try require(catalog.contains { $0.name.contains("Widget root fixture / Widget nested fixture / Widget fixture B") }, "Nested album path appears in choices")
@@ -222,8 +240,8 @@ struct PhotoIntegrationApp: App {
                                           minutes: 60, now: now)[1].date
             try require(partial.policy == .after(next),
                         "Single-photo timeline requests reload at its instance-specific next boundary")
-            let current = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
-                                            minutes: 60, now: now)[0].assetID
+            let current = PhotoLibrarySource.selection(sourceID: resolved[1].id, instanceID: identity[0].id,
+                                                       minutes: 60, now: now)!
             try require(partial.entries[0].assetID == current &&
                         PhotoWidgetLink.url(assetID: current).flatMap(PhotoWidgetLink.assetID) == current,
                         "Photo-widget destination is the same asset as the currently displayed image")

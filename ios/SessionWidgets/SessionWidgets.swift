@@ -63,12 +63,16 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("source-query-start")
         #endif
-        let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
         #if WIDGET_PHOTO_DIAGNOSTICS
-        WidgetPhotoDiagnostics.record("source-query-complete-count-\(assets.count)")
-        if let timeline = WidgetPhotoDiagnostics.libraryTimeline(configuration, now: now, count: assets.count) { return timeline }
+        if configuration.photoDiagnostic == .library {
+            let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
+            if let timeline = WidgetPhotoDiagnostics.libraryTimeline(configuration, now: now, count: assets.count) { return timeline }
+        }
         #endif
-        guard !assets.isEmpty else {
+        guard let window = PhotoSchedule.window(instanceID: identity.id, sourceID: source.id,
+                                               minutes: configuration.intervalMinutes, now: now),
+              let assetID = PhotoLibrarySource.selection(sourceID: source.id, instanceID: identity.id,
+                                                        minutes: configuration.intervalMinutes, now: now) else {
             let message = PhotoLibrarySource.status == .limited && source.id != PhotoLibrarySource.accessibleID
                 ? "读取相册/文件夹需要完整照片访问；有限权限可选已授权照片"
                 : "来源为空、已删除或没有可访问的照片"
@@ -76,9 +80,7 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         }
         // Calculate the next boundary but load only the current image. Six
         // preloaded entries also caused snapshot() to load six full images.
-        let picks = PhotoSchedule.plan(assetIDs: assets, instanceID: identity.id, sourceID: source.id,
-                                      minutes: configuration.intervalMinutes, now: now, count: 2)
-        guard let imageData = await loadImage(picks[0].assetID, size, 8) else {
+        guard let imageData = await loadImage(assetID, size, 8) else {
         #if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("provider-image-unavailable")
         #endif
@@ -89,10 +91,10 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         if let timeline = WidgetPhotoDiagnostics.requestTimeline(configuration, now: now, data: imageData) { return timeline }
         WidgetPhotoDiagnostics.record("timeline-ready-one-image")
         #endif
-        let message = WidgetPhotoOpenStatus.message(instanceID: identity.id, assetID: picks[0].assetID, now: now)
-        let refresh = message == nil ? picks[1].date : min(picks[1].date, now.addingTimeInterval(90))
+        let message = WidgetPhotoOpenStatus.message(instanceID: identity.id, assetID: assetID, now: now)
+        let refresh = message == nil ? window.nextDate : min(window.nextDate, now.addingTimeInterval(90))
         return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
-            imageData: imageData, message: message, assetID: picks[0].assetID, instanceID: identity.id)],
+            imageData: imageData, message: message, assetID: assetID, instanceID: identity.id)],
             policy: .after(refresh))
     }
 }

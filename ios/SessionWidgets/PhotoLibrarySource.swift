@@ -70,24 +70,86 @@ enum PhotoLibrarySource {
         guard pieces.count == 2 else { return [] }
         let albums: [String]
         if pieces[0] == "folder" {
-            let folders = foldersByID()
-            albums = PhotoFolderTraversal.albums(root: pieces[1]) { id in
-                guard let folder = folders[id] else { return [] }
-                var children: [(id: String, folder: Bool)] = []
-                PHCollection.fetchCollections(in: folder, options: nil).enumerateObjects { collection, _, _ in
-                    children.append((collection.localIdentifier, collection is PHCollectionList))
-                }
-                return children
-            }
+            // Full enumeration is retained for explicit library diagnostics and
+            // integration fixtures. Production folder timelines use selection().
+            albums = folderAlbumIDs(pieces[1])
         } else if pieces[0] == "album" { albums = [pieces[1]] }
         else { return [] }
         var result = Set<String>()
         for id in albums {
-            guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
-                  album.assetCollectionSubtype != .smartAlbumAllHidden else { continue }
-            result.formUnion(identifiers(PHAsset.fetchAssets(in: album, options: options)))
+            autoreleasepool {
+                guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
+                      album.assetCollectionSubtype != .smartAlbumAllHidden else { return }
+                result.formUnion(identifiers(PHAsset.fetchAssets(in: album, options: options)))
+            }
         }
         return result.sorted()
+    }
+
+    static func selection(sourceID: String, instanceID: String, minutes: Int, now: Date) -> String? {
+        guard let window = PhotoSchedule.window(instanceID: instanceID, sourceID: sourceID, minutes: minutes, now: now),
+              status == .authorized || status == .limited else { return nil }
+        guard sourceID.hasPrefix("folder:") else {
+            // Preserve the existing album/limited-library shuffle behavior.
+            return PhotoSchedule.plan(assetIDs: assetIDs(sourceID: sourceID), instanceID: instanceID,
+                                      sourceID: sourceID, minutes: minutes, now: now, count: 1).first?.assetID
+        }
+        guard status == .authorized else { return nil }
+        let albums = autoreleasepool { folderAlbumIDs(String(sourceID.dropFirst("folder:".count))) }
+        guard !albums.isEmpty else { return nil }
+        let key = PhotoFolderSelectionCache.key(instanceID: instanceID, sourceID: sourceID, minutes: minutes)
+        let previous = PhotoFolderSelectionCache.read(key: key)
+        // Validate membership and access before reusing a small cached selection;
+        // no asset-count queries are needed for a reload in the same period.
+        if let previous, previous.tick == window.tick, folderContains(previous.assetID, albums: Set(albums)) {
+            return previous.assetID
+        }
+        let counts = albums.map { id in autoreleasepool { albumAssets(id)?.count ?? 0 } }
+        let picked = PhotoFolderSampler.select(counts: counts, seed: window.seed, excluding: previous?.assetID) { bucket, offset in
+            autoreleasepool {
+                guard let assets = albumAssets(albums[bucket]), offset < assets.count else { return nil }
+                let asset = assets.object(at: offset)
+                guard !asset.isHidden, asset.mediaType == .image else { return nil }
+                return asset.localIdentifier
+            }
+        }
+        guard let picked, status == .authorized, folderContains(picked, albums: Set(albums)) else { return nil }
+        PhotoFolderSelectionCache.write(.init(tick: window.tick, assetID: picked), key: key)
+        return picked
+    }
+
+    private static func folderAlbumIDs(_ root: String) -> [String] {
+        let folders = foldersByID()
+        return PhotoFolderTraversal.albums(root: root) { id in
+            guard let folder = folders[id] else { return [] }
+            var children: [(id: String, folder: Bool)] = []
+            PHCollection.fetchCollections(in: folder, options: nil).enumerateObjects { collection, _, _ in
+                children.append((collection.localIdentifier, collection is PHCollectionList))
+            }
+            return children
+        }
+    }
+
+    private static func albumAssets(_ id: String) -> PHFetchResult<PHAsset>? {
+        guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
+              album.assetCollectionSubtype != .smartAlbumAllHidden else { return nil }
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+        options.includeHiddenAssets = false
+        return PHAsset.fetchAssets(in: album, options: options)
+    }
+
+    private static func folderContains(_ id: String, albums: Set<String>) -> Bool {
+        autoreleasepool {
+            guard status == .authorized,
+                  let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject,
+                  !asset.isHidden, asset.mediaType == .image else { return false }
+            var contains = false
+            PHAssetCollection.fetchAssetCollectionsContaining(asset, with: .album, options: nil).enumerateObjects { album, _, stop in
+                if albums.contains(album.localIdentifier) { contains = true; stop.pointee = true }
+            }
+            return contains
+        }
     }
 
     private static func foldersByID() -> [String: PHCollectionList] {
@@ -102,7 +164,9 @@ enum PhotoLibrarySource {
 
     private static func identifiers(_ assets: PHFetchResult<PHAsset>) -> [String] {
         var result: [String] = []
-        assets.enumerateObjects { asset, _, _ in result.append(asset.localIdentifier) }
+        for index in 0..<assets.count {
+            autoreleasepool { result.append(assets.object(at: index).localIdentifier) }
+        }
         return result
     }
 
@@ -163,6 +227,41 @@ enum PhotoLibrarySource {
         let height = size.height.isFinite && size.height > 1 ? size.height : 180
         let scale = min(3, 1200 / max(width, height))
         return CGSize(width: max(1, (width * scale).rounded()), height: max(1, (height * scale).rounded()))
+    }
+}
+
+// A few IDs per widget, rather than a persisted inventory of the folder. Kept
+// inside the extension's cache and always revalidated against current PhotoKit.
+enum PhotoFolderSelectionCache {
+    struct Record: Codable { let tick: Int64; let assetID: String }
+    private static var directory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("WidgetFolderSelection-v1", isDirectory: true)
+    }
+    static func key(instanceID: String, sourceID: String, minutes: Int) -> String {
+        let value = "\(instanceID)\u{0}\(sourceID)\u{0}\(minutes)"
+        return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    static func read(key: String) -> Record? {
+        guard let data = try? Data(contentsOf: directory.appendingPathComponent(key + ".json")),
+              data.count < 8192 else { return nil }
+        return try? JSONDecoder().decode(Record.self, from: data)
+    }
+    static func write(_ record: Record, key: String) {
+        let manager = FileManager.default
+        do {
+            try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+            try JSONEncoder().encode(record).write(to: directory.appendingPathComponent(key + ".json"),
+                options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            let files = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])
+            let newest = files.sorted {
+                ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) >
+                ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast)
+            }
+            for file in newest.dropFirst(64) { try? manager.removeItem(at: file) }
+        } catch {
+            // Cache availability must not prevent a fresh selection.
+        }
     }
 }
 
