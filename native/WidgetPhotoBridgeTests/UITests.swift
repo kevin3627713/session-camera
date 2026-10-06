@@ -37,10 +37,11 @@ final class PhotoBridgeUITests: XCTestCase {
             XCTAssertTrue(photos.wait(for: .runningForeground, timeout: 20), spring.debugDescription)
             let proceed = photos.buttons["Continue"].firstMatch
             if proceed.waitForExistence(timeout: 5) { proceed.tap() }
-            let pager = photos.otherElements["OneUpMainPagingView"].firstMatch
+            let pager = photos.scrollViews["OneUpMainPagingView"].firstMatch
             XCTAssertTrue(pager.waitForExistence(timeout: 30), photos.debugDescription)
             // Target red image is 10:13 PM; the blue decoy is 10:14 PM.
-            let target = photos.staticTexts["10:13 PM"].firstMatch
+            // Apple's formatter inserts U+202F before PM on this simulator.
+            let target = photos.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '10:13' AND label CONTAINS 'PM'")).firstMatch
             XCTAssertTrue(target.waitForExistence(timeout: 20), photos.debugDescription)
             XCTAssertTrue(photos.staticTexts["November 14, 2023"].exists, photos.debugDescription)
             XCTAssertEqual(host.state, .notRunning, "Containing camera app started")
