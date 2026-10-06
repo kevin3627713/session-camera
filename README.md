@@ -6,9 +6,9 @@
 
 Public repository: https://github.com/kevin3627713/session-camera
 
-**当前分支：iOS 18 可编辑小组件实验。** 四种原有预设都可通过原生“编辑小组件”切换五种样式，支持按相册 / 文件夹独立随机展示照片和更换周期，默认点击不打开应用，共用原来的一个 WidgetKit 扩展。机主已确认 0.3.2 的照片组件在 iOS 18.7.8 正常显示；0.3.3 保留该加载策略，分离诊断代码、精简界面，并把相册会话改为应用进程生命周期。正式 main 分支保持原版本。
+**当前分支：iOS 18 可编辑小组件实验。** 四种原有预设都可通过原生“编辑小组件”切换五种样式，支持按相册 / 文件夹独立随机展示照片和更换周期，默认点击不打开应用，共用原来的一个 WidgetKit 扩展。0.3.4 调用系统照片小组件使用的建议裁剪接口，只移动取景位置、保留原有放大程度，并增加“在系统照片中打开”点击选项。后台保留同一相机会话，普通构建不包含照片诊断功能。正式 main 分支保持原版本。
 
-[下载 0.3.3 候选 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.3/session-camera-unsigned.ipa) · [候选版说明](docs/WIDGET_RELEASE_NOTES.md) · [小组件配置](docs/CONFIGURABLE_WIDGETS.md)。照片问题的历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](docs/WIDGET_PHOTO_INVESTIGATION.md)，保留的可选诊断代码及启用方式见 [WidgetDiagnostics](native/WidgetDiagnostics/README.md)。
+[下载 0.3.4 候选 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.4/session-camera-unsigned.ipa) · [候选版说明](docs/WIDGET_RELEASE_NOTES.md) · [小组件配置](docs/CONFIGURABLE_WIDGETS.md)。照片问题的历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](docs/WIDGET_PHOTO_INVESTIGATION.md)，保留的可选诊断代码及启用方式见 [WidgetDiagnostics](native/WidgetDiagnostics/README.md)。
 
 ## 界面预览
 
@@ -54,11 +54,11 @@ Public repository: https://github.com/kevin3627713/session-camera
 
 ## 权限与边界
 
-编辑同一条系统照片记录需要 PhotoKit 读写权限。允许「有限访问」即可，借拍只根据本次创建、保存在内存中的照片 ID 调用 `fetchAssets(withLocalIdentifiers:)`，没有枚举系统照片、相册、日期查询、导入照片或跳转系统照片的入口。仅添加照片权限可拍摄保存，但无法同步修改原记录。iOS 可能在编辑提交时弹出确认。
+编辑同一条系统照片记录需要 PhotoKit 读写权限。允许「有限访问」即可，借拍只根据本次创建、保存在内存中的照片 ID 调用 `fetchAssets(withLocalIdentifiers:)`，相机和本次预览没有枚举系统照片、相册、日期查询、导入照片或跳转系统照片的入口；可选小组件的跳转见下文。仅添加照片权限可拍摄保存，但无法同步修改原记录。iOS 可能在编辑提交时弹出确认。
 
 应用不上传照片，没有账号、广告、分析 SDK、服务器或定位权限。当前界面语言为中文，最低 iOS 17。查看 [隐私设计](docs/PRIVACY.md) 和 [验收清单](docs/ACCEPTANCE.md)。
 
-可选随机照片小组件在独立扩展读取你选择的来源，具名相册 / 文件夹需要完整照片访问；有限权限可选已授权照片。它不会把已有照片加入相机的本次预览。每个小组件使用自己的配置与独立编号，默认点击不打开应用。权限管理入口要求机主验证。
+可选随机照片小组件在独立扩展读取你选择的来源，具名相册 / 文件夹需要完整照片访问；有限权限可选已授权照片。它不会把已有照片加入相机的本次预览。每个小组件使用自己的配置与独立编号，默认点击不打开应用，也可明确选择打开借拍或在系统照片中打开当前图片。权限管理入口要求机主验证。
 
 本项目追求常用操作和原生相机的布局；没有宣称复刻苹果专有的 Night mode、Smart HDR、Deep Fusion、Photographic Styles、Portrait/Cinematic、Live Photos、ProRAW、全景拼接、系统完整编辑器或 Camera Control 锁屏扩展。这些能力不应以无效按钮伪装成可用功能。当前视频没有剪辑工具，照片可以编辑。移出本次预览只隐藏本地项目，不删除系统照片。
 

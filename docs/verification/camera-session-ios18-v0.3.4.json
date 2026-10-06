@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "workflow": "https://github.com/kevin3627713/session-camera/actions/runs/37421805192",
+  "sourceCommit": "b5070519ec8fabfbc5924fa20e48bdf92fe6bd6b",
+  "count": 4,
+  "checks": [
+    "testBackgroundPreservesPhotosInFlightCallbacksAndViewRecreation",
+    "testCameraEXIFOrientationIsAppliedExactlyOnceInEditedJPEG",
+    "testCropAfterRotationUsesRotatedCoordinateSpace",
+    "testRotationIsBakedIntoImagePixels"
+  ],
+  "note": "Release source differs only in the independent PhotoKit test fixture, not the app or shared sources."
+}
