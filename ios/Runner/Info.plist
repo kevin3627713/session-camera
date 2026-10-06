@@ -26,6 +26,8 @@
 	<true/>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array><string>photos-navigation</string></array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

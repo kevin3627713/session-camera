@@ -20,15 +20,19 @@ app="$PWD/build/widget-photo-integration/WidgetPhotoIntegration.app"
 mkdir -p "$app"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 compiler_flags=(-swift-version 5 -D WIDGET_INTEGRATION_TEST)
+xcrun clang -fobjc-arc -isysroot "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
+  -c ios/SessionWidgets/SystemPhotoCrop.m -o artifacts/system-photo-crop-simulator.o
 if [[ "${WIDGET_PHOTO_DIAGNOSTICS:-0}" == "1" ]]; then
   compiler_flags+=(-D WIDGET_PHOTO_DIAGNOSTICS)
 fi
 xcrun swiftc "${compiler_flags[@]}" -sdk "$sdk" -target "$(uname -m)-apple-ios18.0-simulator" \
+  -import-objc-header ios/SessionWidgets/SystemPhotoCrop.h artifacts/system-photo-crop-simulator.o \
   -o "$app/WidgetPhotoIntegration" native/WidgetHookTests/PhotoIntegrationApp.swift \
   ios/SessionWidgets/WidgetOptions.swift ios/SessionWidgets/PhotoLibrarySource.swift \
   ios/SessionWidgets/SessionWidgets.swift \
   native/WidgetDiagnostics/PhotoWidgetDiagnostics.swift \
   native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift \
+  native/SessionCore/Sources/WidgetCore/PhotoWidgetGeometry.swift ios/Runner/SystemPhotosNavigation.swift \
   > artifacts/widget-photo-compile.log 2>&1 || { cat artifacts/widget-photo-compile.log; exit 1; }
 cat > "$app/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -44,6 +48,7 @@ cat > "$app/Info.plist" <<'PLIST'
 <key>UILaunchScreen</key><dict/>
 <key>NSPhotoLibraryUsageDescription</key><string>Simulator integration test with synthetic photos only.</string>
 <key>NSPhotoLibraryAddUsageDescription</key><string>Create synthetic simulator fixtures.</string>
+<key>LSApplicationQueriesSchemes</key><array><string>photos-navigation</string></array>
 </dict></plist>
 PLIST
 codesign --force --sign - "$app"

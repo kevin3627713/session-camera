@@ -11,10 +11,10 @@ enum CameraWidgetStyle: String, AppEnum {
 }
 
 enum WidgetTapBehavior: String, AppEnum {
-    case none, camera
+    case none, camera, photos
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "点击行为"
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
-        .none: "不打开应用", .camera: "打开借拍"
+        .none: "不打开应用", .camera: "打开借拍", .photos: "在系统照片中打开"
     ]
 }
 

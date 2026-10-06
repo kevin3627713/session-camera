@@ -113,9 +113,16 @@ enum PhotoLibrarySource {
         // Recheck access and the asset before consulting the extension's cache.
         // Cached bytes must never bypass a removed asset or revoked permission.
         guard status == .authorized || status == .limited,
-              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject else { return nil }
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject,
+              !asset.isHidden else { return nil }
         let target = pixelSize(for: size)
-        let cacheKey = PhotoImageCache.key(asset: asset, target: target)
+        // The system Photos widget calls this exact selector. Reuse its existing
+        // signals without loading pixels or running another analysis model.
+        let suggested = SCSuggestedPhotoCrop(asset, target)
+        let crop = PhotoWidgetGeometry.crop(assetSize: CGSize(width: CGFloat(asset.pixelWidth), height: CGFloat(asset.pixelHeight)),
+                                            target: target, suggestedPixelCrop: suggested)
+        // Analysis can update its recommendation independently of edit time.
+        let cacheKey = PhotoImageCache.key(asset: asset, target: target, crop: crop)
         if let cached = PhotoImageCache.read(key: cacheKey, target: target) {
 #if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("image-cache-hit")
@@ -127,7 +134,7 @@ enum PhotoLibrarySource {
             let options = PHImageRequestOptions()
             options.deliveryMode = .highQualityFormat
             options.resizeMode = .exact
-            options.normalizedCropRect = cropRect(assetSize: CGSize(width: CGFloat(asset.pixelWidth), height: CGFloat(asset.pixelHeight)), target: target)
+            options.normalizedCropRect = crop
             options.isNetworkAccessAllowed = true
 #if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("image-request-start")
@@ -146,10 +153,7 @@ enum PhotoLibrarySource {
     }
 
     static func cropRect(assetSize: CGSize, target: CGSize) -> CGRect {
-        guard assetSize.width > 0, assetSize.height > 0, target.width > 0, target.height > 0 else { return .zero }
-        let ratio = (target.width / target.height) / (assetSize.width / assetSize.height)
-        let width = min(1, ratio), height = min(1, 1 / ratio)
-        return CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
+        PhotoWidgetGeometry.crop(assetSize: assetSize, target: target)
     }
 
     static func pixelSize(for size: CGSize) -> CGSize {
@@ -232,11 +236,12 @@ enum PhotoImageCache {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("WidgetPhotosHQ-v1", isDirectory: true)
     }
-    static func key(asset: PHAsset, target: CGSize) -> String {
-        key(assetID: asset.localIdentifier, modified: asset.modificationDate?.timeIntervalSince1970 ?? 0, target: target)
+    static func key(asset: PHAsset, target: CGSize, crop: CGRect = .zero) -> String {
+        key(assetID: asset.localIdentifier, modified: asset.modificationDate?.timeIntervalSince1970 ?? 0, target: target, crop: crop)
     }
-    static func key(assetID: String, modified: TimeInterval, target: CGSize) -> String {
-        let value = "\(assetID)|\(modified)|\(Int(target.width))x\(Int(target.height))"
+    static func key(assetID: String, modified: TimeInterval, target: CGSize, crop: CGRect = .zero) -> String {
+        let position = [crop.minX, crop.minY, crop.width, crop.height].map { String(format: "%.6f", Double($0)) }.joined(separator: ",")
+        let value = "system-crop-v1|\(assetID)|\(modified)|\(Int(target.width))x\(Int(target.height))|\(position)"
         return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
     static func read(key: String, target: CGSize) -> Data? {

@@ -9,7 +9,9 @@ on:
       - 'ios/SessionWidgets/PhotoLibrarySource.swift'
       - 'ios/SessionWidgets/SessionWidgets.swift'
       - 'ios/SessionWidgets/WidgetOptions.swift'
-      - 'native/SessionCore/Sources/WidgetCore/PhotoSchedule.swift'
+      - 'ios/SessionWidgets/SystemPhotoCrop.*'
+      - 'ios/Runner/SystemPhotosNavigation.swift'
+      - 'native/SessionCore/Sources/WidgetCore/**'
       - 'scripts/test_widget_photos.sh'
       - '.github/workflows/widget-photos.yml'
   workflow_dispatch:

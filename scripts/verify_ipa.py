@@ -25,6 +25,8 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert "Payload/Runner.app/Frameworks/App.framework/App" in archive.namelist()
     assert "Payload/Runner.app/Frameworks/Flutter.framework/Flutter" in archive.namelist()
     assert info.get("FlutterDeepLinkingEnabled") is False
+    assert "photos-navigation" in info.get("LSApplicationQueriesSchemes", [])
+    assert b"photos-navigation" in executable
     assert any("sessioncamera" in entry.get("CFBundleURLSchemes", []) for entry in info.get("CFBundleURLTypes", []))
     extension_root = "Payload/Runner.app/PlugIns/SessionWidgets.appex/"
     widget_info = plistlib.loads(archive.read(extension_root + "Info.plist"))
@@ -58,6 +60,10 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
     styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
     assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}
+    taps = next(item for item in definitions["enums"] if item["identifier"] == "WidgetTapBehavior")
+    assert {item["identifier"] for item in taps["cases"]} == {"none", "camera", "photos"}
+    assert b"suggestedCropForTargetSize:" in widget_executable
+    assert b"VNGenerateAttentionBasedSaliencyImageRequest" not in widget_executable
     for entity, query in (("PhotoSourceEntity", "PhotoSourceQuery"), ("WidgetIdentityEntity", "WidgetIdentityQuery")):
         assert definitions["entities"][entity]["defaultQueryIdentifier"] == "SessionWidgets." + query
         assert definitions["queries"][query]["defaultQueryForEntity"] is True

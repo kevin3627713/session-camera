@@ -34,6 +34,8 @@ jobs:
         run: swift test --package-path native/SessionCore
       - name: Test private widget descriptor mutation and fallback
         run: bash scripts/test_widget_descriptor_hook.sh
+      - name: Test system Photos crop selector ABI and fallback
+        run: bash scripts/test_system_photo_crop.sh
       - name: Setup pinned Flutter
         run: |
           git clone --depth 1 --branch 3.35.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"

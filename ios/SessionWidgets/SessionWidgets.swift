@@ -8,6 +8,7 @@ struct CameraWidgetEntry: TimelineEntry {
     let tapBehavior: WidgetTapBehavior
     var imageData: Data?
     var message: String?
+    var assetID: String?
 }
 
 struct CameraWidgetProvider: AppIntentTimelineProvider {
@@ -88,7 +89,7 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         WidgetPhotoDiagnostics.record("timeline-ready-one-image")
         #endif
         return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
-            imageData: imageData)], policy: .after(picks[1].date))
+            imageData: imageData, assetID: picks[0].assetID)], policy: .after(picks[1].date))
     }
 }
 
@@ -111,6 +112,9 @@ struct CameraWidgetView: View {
         Group {
             if entry.tapBehavior == .camera {
                 Link(destination: URL(string: "sessioncamera://camera")!) { content }
+            } else if entry.tapBehavior == .photos, entry.style == .photos,
+                      let id = entry.assetID, entry.imageData != nil, let url = PhotoWidgetLink.url(assetID: id) {
+                Link(destination: url) { content }
             } else {
                 // A full-size interactive control consumes the tap. Merely
                 // removing widgetURL would still open the containing app.
@@ -120,7 +124,8 @@ struct CameraWidgetView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .widget)
-        .accessibilityLabel(entry.tapBehavior == .camera ? "打开借拍" : "借拍小组件，不打开应用")
+        .accessibilityLabel(entry.tapBehavior == .camera ? "打开借拍" :
+            entry.tapBehavior == .photos && entry.assetID != nil ? "在系统照片中打开这张照片" : "借拍小组件，不打开应用")
     }
 
     private var content: some View {

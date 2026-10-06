@@ -19,6 +19,7 @@ struct PhotoIntegrationApp: App {
             checks.append(name)
         }
         var report: [String: Any]
+        var systemCropProbe: [String: Any] = [:]
         let initialStatus = PhotoLibrarySource.status.rawValue
         do {
             // Request the access level explicitly even after simctl pre-grants it:
@@ -106,11 +107,28 @@ struct PhotoIntegrationApp: App {
             try require(largePixels?.width == 1080 && largePixels?.height == 1140, "Large widget receives full bounded Retina resolution")
             let target = PhotoLibrarySource.pixelSize(for: CGSize(width: 160, height: 160))
             let asset = PHAsset.fetchAssets(withLocalIdentifiers: [picks[0].assetID], options: nil).firstObject!
-            let key = PhotoImageCache.key(asset: asset, target: target)
+            try require(asset.responds(to: NSSelectorFromString("suggestedCropForTargetSize:")),
+                        "System Photos crop selector is exposed on a real PHAsset in an ordinary app")
+            let cropStart = ProcessInfo.processInfo.systemUptime
+            let suggested = SCSuggestedPhotoCrop(asset, target)
+            let elapsed = (ProcessInfo.processInfo.systemUptime - cropStart) * 1000
+            try require(!suggested.isNull && !suggested.isEmpty, "System crop returns a real pixel rectangle without additional entitlements")
+            let assetSize = CGSize(width: CGFloat(asset.pixelWidth), height: CGFloat(asset.pixelHeight))
+            try require(CGRect(origin: .zero, size: assetSize).contains(suggested), "System suggestion is bounded by actual source pixels")
+            let crop = PhotoWidgetGeometry.crop(assetSize: assetSize, target: target, suggestedPixelCrop: suggested)
+            try require(crop.size == PhotoWidgetGeometry.crop(assetSize: assetSize, target: target).size,
+                        "System recommendation preserves the current aspect-fill zoom")
+            systemCropProbe = ["selector": "suggestedCropForTargetSize:", "sourceWidth": asset.pixelWidth,
+                "sourceHeight": asset.pixelHeight, "pixelCrop": NSStringFromCGRect(suggested),
+                "normalizedCrop": NSStringFromCGRect(crop), "elapsedMilliseconds": elapsed,
+                "fixture": "New synthetic asset; existing subject recognition is not asserted"]
+            let key = PhotoImageCache.key(asset: asset, target: target, crop: crop)
             try require(PhotoImageCache.read(key: key, target: target) == data, "Final-quality JPEG survives beyond one timeline request")
             try require(PhotoImageCache.read(key: key, target: CGSize(width: 1080, height: 1140)) == nil, "Cache rejects a mismatched widget size")
             let repeatData = await PhotoLibrarySource.imageData(assetID: picks[0].assetID, size: CGSize(width: 160, height: 160))
             try require(repeatData == data, "Re-added widget can reuse a stable high-quality cached photo")
+            try require(PhotoImageCache.key(asset: asset, target: target, crop: CGRect(x: 0.1, y: 0, width: 0.9, height: 1)) != key,
+                        "Cache is invalidated when system crop position changes without an edit")
             let bounded = PhotoLibrarySource.pixelSize(for: CGSize(width: 1000, height: 2000))
             try require(bounded == CGSize(width: 600, height: 1200), "Requested image dimensions have a bounded longest edge")
             let wideCrop = PhotoLibrarySource.cropRect(assetSize: CGSize(width: 6000, height: 1000), target: target)
@@ -119,6 +137,37 @@ struct PhotoIntegrationApp: App {
             let tallCrop = PhotoLibrarySource.cropRect(assetSize: CGSize(width: 1000, height: 6000), target: target)
             try require(tallCrop.width == 1 && abs(tallCrop.height - 1.0 / 6) < 0.0001,
                         "Portrait request bounds its crop before UIImage rendering")
+
+            let fullCloudID = "cloud-id/L0/001#fingerprint?x=1&text=中文+%"
+            let cloud = PHCloudIdentifier(stringValue: fullCloudID)
+            let mapped = try SystemPhotosNavigation.resolveURL(for: redID, cloudMapping: { _ in cloud }, localMapping: { _ in redID })
+            let components = URLComponents(url: mapped, resolvingAgainstBaseURL: false)!
+            try require(components.scheme == "photos-navigation" && components.host == "asset" &&
+                        components.queryItems == [URLQueryItem(name: "cloud-identifier", value: fullCloudID)],
+                        "Photos URL preserves the complete cloud identifier with exact query encoding")
+            do {
+                _ = try SystemPhotosNavigation.resolveURL(for: redID, cloudMapping: { _ in cloud }, localMapping: { _ in blueID })
+                throw NSError(domain: "WidgetIntegration", code: 2)
+            } catch SystemPhotosNavigation.Failure.assetMismatch {
+                try require(true, "Mismatched reverse cloud mapping cannot open a different photo")
+            }
+            do {
+                _ = try SystemPhotosNavigation.resolveURL(for: redID, cloudMapping: { _ in throw NSError(domain: "Mapping", code: 1) },
+                                                          localMapping: { _ in redID })
+                throw NSError(domain: "WidgetIntegration", code: 2)
+            } catch SystemPhotosNavigation.Failure.identifierUnavailable {
+                try require(true, "Missing cloud mapping fails without a generic Photos fallback")
+            }
+            var realPhotoURL: URL?
+            for _ in 0..<10 {
+                realPhotoURL = try? SystemPhotosNavigation.resolveURL(for: redID)
+                if realPhotoURL != nil { break }
+                try await Task.sleep(nanoseconds: 200_000_000)
+            }
+            try require(realPhotoURL != nil, "Real PhotoKit cloud and local mappings round-trip for the displayed asset")
+            try require(UIApplication.shared.canOpenURL(realPhotoURL!), "System Photos accepts the configured navigation scheme")
+            try require((try? SystemPhotosNavigation.checkAccess(hiddenID)) == nil,
+                        "Hidden photos cannot be opened through the widget route")
 
             let accepted: Data? = await withCheckedContinuation { continuation in
                 let request = PhotoImageRequest(continuation, target: target)
@@ -149,6 +198,7 @@ struct PhotoIntegrationApp: App {
             configuration.source = resolved[1]
             configuration.identity = identity[0]
             configuration.intervalMinutes = 60
+            configuration.tapBehavior = .photos
             let provider = CameraWidgetProvider(preset: .blank)
             let now = Date()
             let unavailable = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
@@ -166,6 +216,12 @@ struct PhotoIntegrationApp: App {
                                           minutes: 60, now: now)[1].date
             try require(partial.policy == .after(next),
                         "Single-photo timeline requests reload at its instance-specific next boundary")
+            let current = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
+                                            minutes: 60, now: now)[0].assetID
+            try require(partial.entries[0].assetID == current &&
+                        PhotoWidgetLink.url(assetID: current).flatMap(PhotoWidgetLink.assetID) == current,
+                        "Photo-widget destination is the same asset as the currently displayed image")
+            try require(unavailable.entries[0].assetID == nil, "Unavailable photo has no stale navigation destination")
             #if WIDGET_PHOTO_DIAGNOSTICS
             configuration.photoDiagnostic = .library
             loads = 0
@@ -218,6 +274,7 @@ struct PhotoIntegrationApp: App {
                       "initialAuthorization": initialStatus, "authorization": PhotoLibrarySource.status.rawValue,
                       "bundleID": Bundle.main.bundleIdentifier ?? "missing"]
         }
+        report["systemCropProbe"] = systemCropProbe
         #if WIDGET_PHOTO_DIAGNOSTICS
         report["diagnosticsEnabled"] = true
         #else
