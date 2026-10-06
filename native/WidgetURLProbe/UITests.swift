@@ -22,7 +22,9 @@ final class ProbeUITests: XCTestCase {
             XCTAssertTrue(add.exists, spring.debugDescription)
             add.tap()
         }
-        let search = spring.searchFields.firstMatch
+        // SpringBoard's tree also includes an offscreen App Library search.
+        // Select the visible gallery field explicitly.
+        let search = spring.searchFields["Search Widgets"]
         XCTAssertTrue(search.waitForExistence(timeout: 10), spring.debugDescription)
         search.tap()
         search.typeText("URL Probe")
