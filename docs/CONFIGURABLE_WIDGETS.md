@@ -1,6 +1,8 @@
-# 借拍 0.3.5：可编辑样式、随机相册与后台照片中转
+# 借拍 0.3.6：可编辑样式、随机相册与后台照片中转
 
 在 experiment/widget-direct-photos-ios18 分支继续开发，基于此前开发与 URL 派发研究代码。机主已确认 0.3.2 在 iOS 18.7.8 的照片组件正常显示。单张高清加载、系统建议取景及五种样式沿用 0.3.4；0.3.5 接入后台 Share 中转，点击系统照片选项时不经借拍主应用。诊断沿用显式编译开关，不出现在正常 IPA 中。历史调查见 [WIDGET_PHOTO_INVESTIGATION.md](WIDGET_PHOTO_INVESTIGATION.md)，诊断启用见 [WidgetDiagnostics](../native/WidgetDiagnostics/README.md)。同一个主应用包含原 WidgetKit 扩展和新增照片中转扩展。
+
+0.3.6 修正中转接收端：NSExtensionItem.userInfo 可包含系统的标题、附件等附加字段，[Apple 文档](https://developer.apple.com/documentation/foundation/nsextensionitem/userinfo)明确描述了这一行为。旧 input.count == 3 会误拒绝这种请求。现在只逐项验证照片 ID、完整云标识和请求 UUID，忽略额外元数据，保留权限、隐藏状态及双向映射校验。读取不到输入或只有系统占位数据时先等待后续回调；在原宿主回调完成后接收数据，并以同一个公共 extensionContext 去重。缺少必需字段时给出对应标识的错误。按机主要求，修复版本使用 phone_test 构建，不重复主屏 UI / 模拟器长流程，交付 IPA 真机验收。
 
 ## 原生编辑小组件
 

@@ -1,3 +1,17 @@
+# 借拍 0.3.6：修复照片中转请求校验
+
+修复一处会导致“照片中转请求无效”的过严校验：接收端不再要求 NSExtensionItem.userInfo 恰好三个字段，改为逐项核对照片 ID、完整云标识和请求 UUID。系统附加的标题、附件等元数据不影响这三个字段的有效性，见 [Apple userInfo 文档](https://developer.apple.com/documentation/foundation/nsextensionitem/userinfo)。用真实 NSExtensionItem 设置标题即可复现字段数量超过三的情况。
+
+输入为空或仅有系统占位字段时，不提前占用请求；原宿主回调完成后再处理可用数据。私有实现对象和界面入口按同一个公共 extensionContext 去重，避免同一请求被处理两次。输入取不可变快照。必需标识不合法时提供更具体的错误，照片权限、隐藏状态、完整标识双向映射和成功回传核对继续保留。
+
+版本 0.3.6 / build 11。仍用同一个借拍 App 和两个内置扩展；沿用之前的签名身份与包名映射覆盖安装，保留并签署 SessionWidgets.appex、SessionPhotoBridge.appex。小组件设置与高清图片缓存继续沿用。按机主要求，只做参数回归和编译 / 包检查，不运行主屏 UI 或长时间模拟器验证，交付真机测试。
+
+构建源码 14f153ad898325e4e24988cb2aa17e3202c2d40d，[真机测试包构建](https://github.com/kevin3627713/session-camera/actions/runs/37505511078)通过。六项[请求参数回归](verification/photo-bridge-payload-v0.3.6.json)使用真实 Foundation 对象，标题加入后 userInfo 实际有四个字段；加入标题及安全归档还原均保留三个必需标识，缺少照片 / 云标识或 UUID 无效仍被拒绝。24 项共享 Swift、18 项描述符、9 项裁剪桥接及 2 项 Flutter 检查通过；按要求跳过托管小组件 / 模拟器长流程。真实中转、签名与最终照片定位继续由机主 iOS 18.7.8 验收。
+
+[下载 0.3.6 未签名 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.6/session-camera-unsigned.ipa) · [候选发行页](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.6)。安装包 6,689,820 字节，SHA-256：3374a7f5364cc5a226eb76414822cd1211d0d0e4a4ecedbeb97d4f5b6e020eb8。主应用及两个扩展版本均为 0.3.6 / build 11。
+
+---
+
 # 借拍 0.3.5：从小组件直接打开系统照片
 
 “在系统照片中打开”改为小组件的后台 AppIntent，通过 IPA 内的 Share 扩展派发系统照片链接。借拍主应用不参与此路径，也不需要浏览器中转。已有小组件选中的 photos 点击行为会沿用新实现；五种样式、相册 / 文件夹、独立随机序列、间隔与默认不打开应用继续保留。

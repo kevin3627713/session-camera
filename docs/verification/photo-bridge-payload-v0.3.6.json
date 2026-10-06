@@ -1,0 +1,22 @@
+{
+  "checks": [
+    "Real NSExtensionItem basic payload",
+    "System title enriches userInfo without invalidating payload",
+    "Secure coding retains required fields and extra metadata",
+    "Missing asset rejected",
+    "Missing cloud identifier rejected",
+    "Malformed request nonce rejected"
+  ],
+  "count": 6,
+  "enrichedUserInfoKeyCount": 4,
+  "success": true,
+  "version": "0.3.6",
+  "build": 11,
+  "sourceCommit": "14f153ad898325e4e24988cb2aa17e3202c2d40d",
+  "buildRun": 37505511078,
+  "phoneTestBuild": true,
+  "context": "Actual Foundation NSExtensionItem metadata and secure-coding regression; no hosted widget UI test",
+  "ipaBytes": 6689820,
+  "ipaSHA256": "3374a7f5364cc5a226eb76414822cd1211d0d0e4a4ecedbeb97d4f5b6e020eb8",
+  "iOS1878DeviceValidation": "Owner test pending"
+}
