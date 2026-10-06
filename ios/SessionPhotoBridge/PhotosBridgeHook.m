@@ -14,7 +14,10 @@ NSDictionary *SCPhotoBridgeInput(NSObject *context) {
         NSArray *items = [(NSExtensionContext *)context inputItems];
         if (![items isKindOfClass:NSArray.class] || items.count != 1 || ![items.firstObject isKindOfClass:NSExtensionItem.class]) return nil;
         NSDictionary *value = ((NSExtensionItem *)items.firstObject).userInfo;
-        return [value isKindOfClass:NSDictionary.class] ? [value copy] : nil;
+        // Ignore empty/system-only placeholders until our request is attached.
+        if (![value isKindOfClass:NSDictionary.class] ||
+            (!value[SCPhotoBridgeAssetKey] && !value[SCPhotoBridgeCloudKey] && !value[SCPhotoBridgeNonceKey])) return nil;
+        return [value copy];
     } @catch (__unused NSException *exception) { return nil; }
 }
 

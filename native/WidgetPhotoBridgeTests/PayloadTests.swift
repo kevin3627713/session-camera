@@ -18,7 +18,8 @@ import Foundation
         precondition(payload.assetID == original.assetID && payload.cloudIdentifier == original.cloudIdentifier && payload.nonce == original.nonce)
 
         let data = try NSKeyedArchiver.archivedData(withRootObject: item, requiringSecureCoding: true)
-        let restored = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSExtensionItem.self, from: data)!
+        let restored = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSExtensionItem.self, NSDictionary.self,
+            NSArray.self, NSString.self, NSAttributedString.self, NSData.self, NSNumber.self], from: data) as! NSExtensionItem
         let transported = try PhotoBridgePayload(restored.userInfo!)
         precondition(transported.assetID == payload.assetID && transported.cloudIdentifier == payload.cloudIdentifier && transported.nonce == nonce)
 

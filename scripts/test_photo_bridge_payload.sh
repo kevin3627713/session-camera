@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p artifacts
-xcrun clang -fobjc-arc -framework Foundation -c ios/Shared/PhotoBridgeProtocol.m \
+xcrun clang -fobjc-arc -c ios/Shared/PhotoBridgeProtocol.m \
   -o artifacts/photo-bridge-protocol.o
 xcrun swiftc -swift-version 5 -D PHOTO_BRIDGE_PROTOCOL_TEST \
   -import-objc-header ios/Shared/PhotoBridgeProtocol.h \
