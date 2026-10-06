@@ -6,6 +6,10 @@
 
 版本 0.3.7 / build 12。高清请求、系统建议取景、点击直接定位系统照片、相机会话和五种样式沿用当前实现。机主已确认 0.3.6 的照片中转在未越狱 iOS 18.7.8 可用。本次文件夹修复仍需在出现问题的大文件夹上真机验收。共享算法回归包括六千万个虚拟位置仅读取一个候选、重复收录、空相册、数量权重和周期一致性；PhotoKit 宿主补充实际嵌套文件夹选图、同周期复用与跨周期变化检查。测试和诊断不加入正常 IPA。
 
+源码 fbd6e006af31f8213841c2e989be36850a642401 的[IPA 构建](https://github.com/kevin3627713/session-camera/actions/runs/37516954563)和[照片专项](https://github.com/kevin3627713/session-camera/actions/runs/37516960584)通过。普通模式 49 项实际 PhotoKit 检查通过，诊断模式也通过；[验证记录](verification/widget-folder-photos-ios18.6-v0.3.7.json)区分六千万虚拟位置算法回归与小型真实嵌套图库夹具，不将其描述为真机大图库性能验证。正常包已再次检查两个 arm64 扩展、统一版本、App Intents 元数据和测试代码排除。
+
+[下载 0.3.7 未签名 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.7/session-camera-unsigned.ipa) · [发行页](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.7)。安装包 6,708,455 字节，SHA-256：eb849923436bb4acb61b5723cbf9261d7af40f937484a1a162b015466333efa6。主应用及两个扩展均为 0.3.7 / build 12。沿用原签名身份和包名映射覆盖安装，并保留两个扩展，无需删除已有小组件。
+
 ---
 
 # 借拍 0.3.6：修复照片中转请求校验
