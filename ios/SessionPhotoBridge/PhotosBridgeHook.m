@@ -14,15 +14,24 @@ NSDictionary *SCPhotoBridgeInput(NSObject *context) {
         NSArray *items = [(NSExtensionContext *)context inputItems];
         if (![items isKindOfClass:NSArray.class] || items.count != 1 || ![items.firstObject isKindOfClass:NSExtensionItem.class]) return nil;
         NSDictionary *value = ((NSExtensionItem *)items.firstObject).userInfo;
-        return [value isKindOfClass:NSDictionary.class] ? value : nil;
+        return [value isKindOfClass:NSDictionary.class] ? [value copy] : nil;
     } @catch (__unused NSException *exception) { return nil; }
 }
 
 BOOL SCPhotoBridgeClaimContext(NSObject *context) {
     static const char handled;
-    @synchronized (context) {
-        if (objc_getAssociatedObject(context, &handled)) return NO;
-        objc_setAssociatedObject(context, &handled, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    // The private implementation and principal controller can refer to the same
+    // public extension context. Claim that object once across both entry points.
+    NSObject *owner = context;
+    @try {
+        if ([context respondsToSelector:@selector(extensionContext)]) {
+            id publicContext = [(id)context extensionContext];
+            if ([publicContext isKindOfClass:NSObject.class]) owner = publicContext;
+        }
+    } @catch (__unused NSException *exception) { }
+    @synchronized (owner) {
+        if (objc_getAssociatedObject(owner, &handled)) return NO;
+        objc_setAssociatedObject(owner, &handled, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         return YES;
     }
 }
@@ -60,8 +69,8 @@ static void SCHandleContext(id context) {
 
 static void (*SCOriginalHostCallback)(id, SEL, id);
 static void SCHostCallback(id context, SEL selector, id callback) {
-    SCHandleContext(context);
     SCOriginalHostCallback(context, selector, callback);
+    SCHandleContext(context);
 }
 __attribute__((constructor)) static void SCInstallPhotosBridgeHook(void) {
     Class type = NSClassFromString(@"EXExtensionContextImplementation");

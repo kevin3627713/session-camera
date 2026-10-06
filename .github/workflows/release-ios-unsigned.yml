@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      phone_test:
+        description: Build a phone-test IPA without hosted widget/simulator verification
+        type: boolean
+        default: false
       run_simulator:
         description: Run optional hosted iPhone simulator tests and UI screenshot
         type: boolean
@@ -36,6 +40,8 @@ jobs:
         run: bash scripts/test_widget_descriptor_hook.sh
       - name: Test system Photos crop selector ABI and fallback
         run: bash scripts/test_system_photo_crop.sh
+      - name: Test Photos bridge payload with real Foundation system metadata
+        run: bash scripts/test_photo_bridge_payload.sh
       - name: Setup pinned Flutter
         run: |
           git clone --depth 1 --branch 3.35.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
@@ -54,6 +60,7 @@ jobs:
       - name: Build iPhone application without a certificate
         run: flutter build ios --release --no-codesign
       - name: Compile widget extension for iPhone simulator
+        if: ${{ !inputs.phone_test }}
         run: |
           xcodebuild -project ios/Runner.xcodeproj -target SessionWidgets \
             -configuration Debug -sdk iphonesimulator \
@@ -64,6 +71,7 @@ jobs:
             }
           tail -n 8 artifacts/widget-simulator-compile.log
       - name: Compile retained diagnostics and verify their App Intents metadata
+        if: ${{ !inputs.phone_test }}
         run: |
           xcodebuild -project ios/Runner.xcodeproj -target SessionWidgets \
             -configuration Debug -sdk iphonesimulator \
@@ -84,12 +92,14 @@ jobs:
           print('Retained diagnostics compiled and registered; normal IPA verified separately.')
           PY
       - name: Inspect actual iOS 18 private widget runtime
+        if: ${{ !inputs.phone_test }}
         timeout-minutes: 6
         run: bash scripts/probe_widget_runtime.sh
       - name: Package and validate unsigned IPA
         id: package
         run: bash scripts/package_unsigned_ipa.sh
       - name: Test actual album and folder photo access on iOS 18
+        if: ${{ !inputs.phone_test }}
         timeout-minutes: 14
         run: bash scripts/test_widget_photos.sh
       - name: Test session lifecycle and photo editing on iPhone simulator
