@@ -139,12 +139,25 @@ struct PhotoIntegrationApp: App {
                         "Portrait request bounds its crop before UIImage rendering")
 
             let fullCloudID = "cloud-id/L0/001#fingerprint?x=1&text=中文+%"
-            let cloud = PHCloudIdentifier(stringValue: fullCloudID)
-            let mapped = try SystemPhotosNavigation.resolveURL(for: redID, cloudMapping: { _ in cloud }, localMapping: { _ in redID })
-            let components = URLComponents(url: mapped, resolvingAgainstBaseURL: false)!
+            // PHCloudIdentifier validates its opaque format and can throw an
+            // Objective-C exception on invented strings. Test URL encoding as
+            // text; use an actual PhotoKit-returned object for mapping checks.
+            let encoded = SystemPhotosNavigation.assetURL(forCloudIdentifier: fullCloudID)!
+            let components = URLComponents(url: encoded, resolvingAgainstBaseURL: false)!
             try require(components.scheme == "photos-navigation" && components.host == "asset" &&
                         components.queryItems == [URLQueryItem(name: "cloud-identifier", value: fullCloudID)],
                         "Photos URL preserves the complete cloud identifier with exact query encoding")
+            var realPhotoURL: URL?
+            for _ in 0..<10 {
+                realPhotoURL = try? SystemPhotosNavigation.resolveURL(for: redID)
+                if realPhotoURL != nil { break }
+                try await Task.sleep(nanoseconds: 200_000_000)
+            }
+            try require(realPhotoURL != nil, "Real PhotoKit cloud and local mappings round-trip for the displayed asset")
+            guard let mapping = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: [redID])[redID] else {
+                throw SystemPhotosNavigation.Failure.identifierUnavailable
+            }
+            let cloud = try mapping.get()
             do {
                 _ = try SystemPhotosNavigation.resolveURL(for: redID, cloudMapping: { _ in cloud }, localMapping: { _ in blueID })
                 throw NSError(domain: "WidgetIntegration", code: 2)
@@ -158,13 +171,6 @@ struct PhotoIntegrationApp: App {
             } catch SystemPhotosNavigation.Failure.identifierUnavailable {
                 try require(true, "Missing cloud mapping fails without a generic Photos fallback")
             }
-            var realPhotoURL: URL?
-            for _ in 0..<10 {
-                realPhotoURL = try? SystemPhotosNavigation.resolveURL(for: redID)
-                if realPhotoURL != nil { break }
-                try await Task.sleep(nanoseconds: 200_000_000)
-            }
-            try require(realPhotoURL != nil, "Real PhotoKit cloud and local mappings round-trip for the displayed asset")
             try require(UIApplication.shared.canOpenURL(realPhotoURL!), "System Photos accepts the configured navigation scheme")
             try require((try? SystemPhotosNavigation.checkAccess(hiddenID)) == nil,
                         "Hidden photos cannot be opened through the widget route")
