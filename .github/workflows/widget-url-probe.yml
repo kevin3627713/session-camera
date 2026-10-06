@@ -22,5 +22,9 @@ jobs:
         if: always()
         with:
           name: widget-url-probe-${{ github.run_number }}
-          path: artifacts/widget-url-probe/
+          path: |
+            artifacts/widget-url-probe/*.log
+            artifacts/widget-url-probe/*.json
+            artifacts/widget-url-probe/*.png
+            artifacts/widget-url-probe/screenshots/
           if-no-files-found: error

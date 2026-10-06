@@ -61,14 +61,21 @@ xcodebuild test-without-building -project build/widget-url-probe/URLProbe.xcodep
     CODE_SIGNING_ALLOWED=NO > artifacts/widget-url-probe/ui-tests.log 2>&1
 test_status=$?
 xcrun simctl io "$simulator_id" screenshot artifacts/widget-url-probe/final-screen.png
-xcrun simctl spawn "$simulator_id" log show --last 15m --style compact \
+xcrun simctl spawn "$simulator_id" log show --last 5m --style compact \
     --predicate 'eventMessage CONTAINS "SCURLPROBE"' > artifacts/widget-url-probe/dispatch.log
-xcrun simctl spawn "$simulator_id" log show --last 15m --style compact \
+xcrun simctl spawn "$simulator_id" log show --last 3m --style compact \
     --predicate 'eventMessage CONTAINS "openURL" OR eventMessage CONTAINS "open url" OR eventMessage CONTAINS "not allowed"' \
     > artifacts/widget-url-probe/system-url.log
 set -e
 tail -n 80 artifacts/widget-url-probe/ui-tests.log
+python3 - <<'PY'
+from pathlib import Path
+for line in Path('artifacts/widget-url-probe/ui-tests.log').read_text().splitlines():
+    if 'error:' in line or 'SCURLPROBE UI route=' in line: print(line.split('Attributes:')[0])
+PY
 cat artifacts/widget-url-probe/dispatch.log
+xcrun xcresulttool export attachments --path artifacts/widget-url-probe/URLProbe.xcresult \
+    --output-path artifacts/widget-url-probe/screenshots || true
 python3 - <<'PY'
 import json, pathlib, re, os
 directory=pathlib.Path('artifacts/widget-url-probe')

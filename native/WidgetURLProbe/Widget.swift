@@ -49,7 +49,7 @@ struct ProbeIntent: AppIntent {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "URLRouteProbe", provider: ProbeProvider()) { entry in
             VStack(spacing: 12) {
-                Text(entry.url.isEmpty ? "NO FIXTURE" : "URL ROUTE PROBE").font(.caption)
+                Text(entry.url.isEmpty ? "NO FIXTURE" : "URL ROUTE PROBE").font(.caption).foregroundStyle(.white)
                 HStack {
                     Button("DIRECT", intent: ProbeIntent("direct", entry.url))
                     Button("SENSITIVE", intent: ProbeIntent("sensitive", entry.url))
@@ -58,7 +58,8 @@ struct ProbeIntent: AppIntent {
                     Button("SHARE", intent: ProbeIntent("share", entry.url))
                     Button("MAIN BG", intent: BackgroundProbeIntent(entry.url))
                 }.font(.caption).buttonStyle(.borderedProminent)
-            }.containerBackground(.black, for: .widget)
+            }.accessibilityElement(children: .contain).accessibilityIdentifier("url-route-probe")
+                .containerBackground(.black, for: .widget)
         }.configurationDisplayName("URL Probe").description("Synthetic Photos navigation research").supportedFamilies([.systemMedium])
     }
 }

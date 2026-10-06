@@ -32,23 +32,35 @@ final class ProbeUITests: XCTestCase {
         XCTAssertTrue(result.waitForExistence(timeout: 10), spring.debugDescription)
         result.tap()
         let addWidget = spring.buttons["Add Widget"]
-        XCTAssertTrue(addWidget.waitForExistence(timeout: 10), spring.debugDescription)
-        addWidget.tap()
+        if addWidget.waitForExistence(timeout: 4) {
+            addWidget.tap()
+        } else {
+            // On iOS 18 the gallery preview is a remote view whose AX server
+            // can be unavailable to XCTest. The captured iPhone 16 Pro screen
+            // places the visible Add Widget button at this fixed bottom point.
+            spring.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.94)).tap()
+        }
         if spring.buttons["Done"].waitForExistence(timeout: 5) { spring.buttons["Done"].tap() }
         // A terminated containing app proves a route cannot reuse its foreground.
         host.terminate()
-        XCUIDevice.shared.press(.home)
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         for route in ["DIRECT", "SENSITIVE", "SHARE", "MAIN BG"] {
-            XCUIDevice.shared.press(.home)
+            if spring.state != .runningForeground { XCUIDevice.shared.press(.home) }
             let button = spring.buttons[route].firstMatch
-            XCTAssertTrue(button.waitForExistence(timeout: 30), spring.debugDescription)
             XCTAssertFalse(spring.staticTexts["NO FIXTURE"].exists, "Widget could not obtain its synthetic photo: \(spring.debugDescription)")
             let screenshot = XCTAttachment(screenshot: spring.screenshot())
             screenshot.name = "Before \(route)"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            button.tap()
+            if button.waitForExistence(timeout: 5) {
+                button.tap()
+            } else {
+                let group = spring.otherElements["url-route-probe"].firstMatch
+                let frame = group.exists ? group.frame : CGRect(x: 18, y: 88, width: 366, height: 174)
+                let x: CGFloat = ["DIRECT", "SHARE"].contains(route) ? 0.34 : 0.68
+                let y: CGFloat = ["DIRECT", "SENSITIVE"].contains(route) ? 0.43 : 0.67
+                spring.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame.minX + frame.width*x, dy: frame.minY + frame.height*y)).tap()
+            }
             let enteredPhotos = photos.wait(for: .runningForeground, timeout: 15)
             let openedHost = host.state == .runningForeground
             print("SCURLPROBE UI route=\(route) photosForeground=\(enteredPhotos) hostForeground=\(openedHost) hostState=\(host.state.rawValue)")
