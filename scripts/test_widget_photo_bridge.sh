@@ -65,6 +65,9 @@ xcrun simctl spawn "$simulator_id" log show --last 5m --style compact \
 xcrun simctl spawn "$simulator_id" log show --last 3m --style compact \
     --predicate 'eventMessage CONTAINS "openURL" OR eventMessage CONTAINS "open url" OR eventMessage CONTAINS "not allowed"' \
     > artifacts/widget-photo-bridge/system-url.log
+xcrun simctl spawn "$simulator_id" log show --last 6m --style compact \
+    --predicate 'process == "URLProbeWidget" OR eventMessage CONTAINS "urlprobe.widget" OR eventMessage CONTAINS "URLProbeWidget"' \
+    > artifacts/widget-photo-bridge/widget-runtime.log
 set -e
 tail -n 80 artifacts/widget-photo-bridge/ui-tests.log
 python3 - <<'PY'

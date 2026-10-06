@@ -86,6 +86,7 @@ void SCOpenWidgetPhotoInPhotos(NSString *assetID, NSString *cloudIdentifier, voi
         }
         request.extension = extension;
         __weak SCPhotoBridgeClientRequest *weakRequest = request;
+        __weak NSExtension *weakExtension = extension;
         [extension setRequestCompletionBlock:^(NSUUID *uuid, NSArray *items) {
             SCPhotoBridgeClientRequest *strongRequest = weakRequest;
             if (!strongRequest) return;
@@ -115,7 +116,7 @@ void SCOpenWidgetPhotoInPhotos(NSString *assetID, NSString *cloudIdentifier, voi
                 request.requestID = uuid;
             }
             if (alreadyFinished) {
-                if (cancel && uuid) [extension cancelExtensionRequestWithIdentifier:uuid];
+                if (cancel && uuid) [weakExtension cancelExtensionRequestWithIdentifier:uuid];
                 return;
             }
             if (!uuid) [request finish:NO error:SCBridgeError(7, @"照片中转启动失败，请检查扩展签名") cancel:NO];

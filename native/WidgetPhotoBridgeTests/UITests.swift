@@ -20,7 +20,12 @@ final class PhotoBridgeUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 10), spring.debugDescription)
         search.tap(); search.typeText("URL Probe")
         let result = spring.staticTexts["URL Probe"].firstMatch
-        XCTAssertTrue(result.waitForExistence(timeout: 10), spring.debugDescription)
+        // The freshly registered widget may take longer to enter the gallery.
+        if !result.waitForExistence(timeout: 30) {
+            search.buttons["Clear text"].firstMatch.tap()
+            search.typeText("URL Probe")
+        }
+        XCTAssertTrue(result.waitForExistence(timeout: 30), spring.debugDescription)
         result.tap()
         let addWidget = spring.buttons["Add Widget"]
         if addWidget.waitForExistence(timeout: 4) { addWidget.tap() }

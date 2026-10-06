@@ -24,7 +24,7 @@ make = lambda do |name, type, suffix, filenames, header|
   end
   target
 end
-host = make.call('URLProbe', :application, '', ['native/WidgetURLProbe/Host.swift'], nil)
+host = make.call('URLProbe', :application, '', ['native/WidgetURLProbe/Host.swift', 'native/WidgetPhotoBridgeTests/Registry.m'], nil)
 widget = make.call('URLProbeWidget', :app_extension, '.widget', [
   'native/WidgetPhotoBridgeTests/Widget.swift', 'ios/SessionWidgets/WidgetPhotoOpenIntent.swift',
   'ios/SessionWidgets/PhotoBridgeClient.m', 'ios/Shared/SystemPhotosAsset.swift',
