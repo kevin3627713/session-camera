@@ -28,6 +28,26 @@
 
 敏感 URL 的权限检查可参考另一位开发者的 [SwiftUI 实测](https://kyleye.top/posts/explore-swiftui-link/)：设置隐私 URL 的模拟器示例需要系统 opensensitiveurl entitlement。该例不能替代本机 Photos 的失败原因诊断。[Apple TN2415](https://developer.apple.com/library/archive/technotes/tn2415/_index.html) 说明 entitlement 受代码签名、描述文件及 OS 校验；不能用普通自签名随意声明系统权限来声称已经解决。
 
+## 2026-10-08 社区与启动机制复查
+
+复查 Stack Overflow、Apple Developer Forums、公开 URL scheme 项目、开发者实测以及 GitHub 代码搜索，未找到可在未越狱 iOS 18.7.8 上由普通第三方 App 实现“指定相册上下文 + 指定照片大图”的已验证方案。搜索未发现不等于不存在；系统 18.2 静态实现也不替代本机 18.7.8 行为。
+
+社区资料的适用边界：
+
+- [Stack Overflow 2022：打开选中的照片](https://stackoverflow.com/questions/74124200/how-can-i-show-selected-image-in-photos-app) 仅给出否定回答和 photos-redirect 启动入口，未提供相册上下文的成功实现。机主已经验证单照片云标识跳转，因此不能把这份旧回答当作现代系统绝对不可行的证明。
+- [Apple Developer Forums 2025：photos-navigation 相册入口](https://developer.apple.com/forums/thread/773483) 的提问者尝试按自定义相册名称打开失败；回复者为社区用户，未给出成功代码，也不是 Apple 对全部私有机制的结论。机主的相册云标识 B 已验证有效。
+- [Sami Samhuri 2024 原始逆向记录](https://samhuri.net/posts/2024/04/photos-navigation-url-scheme/) 能按部分系统名称打开相册，但作者未成功定位单照片；[Rare iOS URL Schemes](https://github.com/jimmy-zhening-luo/scheme) 中多项 Photos 路由也引用该文章，不能视作独立成功验证。未发现其中提供双目标云标识的接口。
+- [CarPlay 开发者的原始系统日志](https://developer.apple.com/forums/thread/836595) 显示可见性 / 信任拒绝也能表现为 115；[Meta SDK 开发者报告](https://github.com/facebook/meta-wearables-dat-ios/issues/188) 则报告普通深链接发生 115 后重启能暂时恢复。两者涉及其他应用，不能套用作本机 Photos 的故障原因或修复办法。
+
+本轮从公开 iOS 18.2 反编译实现发现两个具体新线索：
+
+1. [LSSpringBoardCall.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/Frameworks/CoreServices.framework/LSSpringBoardCall.m) 的 `callSpringBoardWithCompletionHandler` 回调（约 153–183 行）收到底层 NSError 后先记录系统日志，再改造成 LSApplicationWorkspaceErrorDomain / 115，仅提示查看日志。原始错误没有作为 NSUnderlyingError 保存。这为“115 不能唯一确定缺少哪个 entitlement”提供代码依据；单纯扩充现有 LS 返回值的记录无法保证取回被替换的原始错误。
+2. 快捷指令的 URL 动作经 [WFOpenURLAction.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/ActionKit.framework/WFOpenURLAction.m)、ICManager / WFApplicationContext 请求打开链接。[WFApplicationContext.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/ContentKit.framework/WFApplicationContext.m) 在 UI 宿主不处理请求时创建 WFAppLaunchRequest；其父类 [INCAppLaunchRequest.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/IntentsCore.framework/INCAppLaunchRequest.m) 的 `performWithService:retainsSiri:completionHandler:` 直接通过 FrontBoard `openApplication:withOptions:completion:` 携带目标 bundle 和 URL，并将原始 NSError 交给回调。它与现有五种 LS / UIApplication 路由不同，值得验证；调用方的系统权限仍会影响结果，不能声称普通 App 仿调用就能获得 Shortcuts 的权限。
+
+后续优先做无需新 IPA 的一次对照：在诊断 App 选择有效相册与照片，选择预设 C，点“复制当前 URL”；在系统快捷指令 App 中创建两步动作“URL（粘贴完整链接）→ 打开 URL”，直接在编辑器点运行。只记录是否打开目标大图、返回和相邻照片是否仍属于所选相册；失败时记录实际提示。该调用方及派发方式尚未纳入十次真机结果。[Apple iOS 18 URL 动作说明](https://support.apple.com/guide/shortcuts/apd68802640c/8.0/ios/18.0) 支持这种手动 URL 动作测试，但没有承诺内部 photos scheme 可用。
+
+若后续需要新的诊断包，应增加一项直接 FrontBoard / INCAppLaunchRequest 派发，保持有效的当前调用方身份，限定目标为真实系统 Photos，记录原始 NSError 链和调用方前台状态。用途首先是取得拒绝原因，并验证不同派发路径；不是已完成的绕过。此路线尚未编译或真机测试，借拍的生产点击行为尚未接入它。已有 C/D 十次失败记录保持不变。
+
 `PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。五种方式分别为 UIApplication.open、主应用私有普通 / 敏感派发、中转扩展私有普通 / 敏感派发。私有入口不保证每个系统版本可用。
 
 系统接受 URL 不等于定位成功。没有自动截取系统 Photos 页面；页面结果由机主观察记录。此工具不创建合成照片、不修改相册、不上传照片或日志；最近 30 次测试留在本机，用户按复制 / 分享按钮导出。
