@@ -62,9 +62,9 @@
 
 前三轮结论：原有五种派发方式在该未越狱 iOS 18.7.8 自签名环境下均无法在指定相册内定位照片，停止重复枚举同一路线的参数。现有借拍生产 Share 中转仍限制为已核对的单照片 `photos-navigation://asset` URL，未把相册导航接入产品；B 已验证单独打开来源相册。通用错误 115 不能唯一确定权限原因。历史十次失败保持不变。
 
-2026-10-08 第四轮：机主明确确认把 C 链接放进系统快捷指令，“URL → 打开 URL”在编辑器内运行后，目标照片打开且返回页面和相邻照片均属于所选相册。已证明该内部 URL 与相册参数在本机有效；尚未证明第三方 App / 扩展或小组件可直接派发。独立诊断 0.1.2 / build 3 增加方式 6（主应用）/ 7（中转）的 INCAppLaunchRequest / FrontBoard 路径，保持真实调用身份，记录原始 NSError，等待两次 C 真机测试。若直接调用被拒绝，可进一步验证动态输入的快捷指令中转。操作与证据边界见[诊断说明](../native/PhotosNavigationProbe/README.md)。
+2026-10-08 第四轮：机主明确确认把 C 链接放进系统快捷指令，“URL → 打开 URL”在编辑器内运行后，目标照片打开且返回页面和相邻照片均属于所选相册。已证明该内部 URL 与相册参数在本机有效；尚未证明第三方 App / 扩展或小组件可直接派发。独立诊断 0.1.2 / build 3 增加方式 6（主应用）/ 7（中转）的 INCAppLaunchRequest / FrontBoard 路径，保持真实调用身份，记录原始 NSError，两次 C 真机测试随后均返回 FBSOpenApplicationServiceErrorDomain / 4，底层 FBSOpenApplicationErrorDomain / 3（Security）及 Request is not trusted。主应用当时为 active，中转 hook 正常；保持原有生产行为，停止这两项直接启动测试。下一步无需新 IPA，验证系统快捷指令的外部启动与动态 text 输入。操作与证据边界见[诊断说明](../native/PhotosNavigationProbe/README.md)。
 
-2026-10-08 社区复查发现：iOS 18.2 的 LaunchServices 会把底层 FrontBoard 启动错误包装成 115；快捷指令的 WFAppLaunchRequest / INCAppLaunchRequest 存在不同的直接启动路径。复查后 C 的快捷指令测试已由机主确认成功；第三方直接调用仍待验证，不计入原有十次失败。源码依据和当前证据边界见[复查记录](../native/PhotosNavigationProbe/README.md#2026-10-08-社区与启动机制复查)。
+2026-10-08 社区复查发现：iOS 18.2 的 LaunchServices 会把底层 FrontBoard 启动错误包装成 115；快捷指令的 WFAppLaunchRequest / INCAppLaunchRequest 存在不同的直接启动路径。复查后 C 的快捷指令测试已由机主确认成功；第三方直接调用随后已被系统信任检查拒绝；这两次为新增的 C 测试，不改变原有十次失败。源码依据和当前证据边界见[复查记录](../native/PhotosNavigationProbe/README.md#2026-10-08-社区与启动机制复查)。
 
 ## 不显示借拍界面的 URL 派发研究（2026-10-06）
 

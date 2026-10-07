@@ -2,7 +2,23 @@
 
 独立 iPhone App，Bundle ID `com.kevin3627713.photosnavigationprobe`，内置中转扩展 `.share`，最低 iOS 18.0。工程和编译流程独立于借拍 Runner；不会将诊断界面或代码加入借拍 IPA。源代码保存在 `research/photos-album-navigation-probe-ios18` 分支。
 
-## 真机操作
+## 当前结果（2026-10-08）
+
+0.1.2 的 C / 方式 6、7 已完成真机测试。照片与相册 UUID 解析正确，主应用派发时为 active，中转 hook 正常。两项均 accepted=false：外层 FBSOpenApplicationServiceErrorDomain / 4（InvalidRequest），底层 FBSOpenApplicationErrorDomain / 3（Security），明确原因 `Request is not trusted.`。当前直接启动实现被系统信任检查拒绝；不再要求重复这两项，也不将其接入借拍生产小组件。不能据此认定所有私有路径绝对不可用或指定某个 entitlement 缺失。
+
+系统快捷指令编辑器内的 C 链接已由机主确认成功，保留指定相册。下一步只测试外部启动和动态输入，不编译新的 IPA。真实目标标识仅用于机主本机的测试链接；仓库报告保留归纳结果。
+
+## 外部快捷指令中转测试（无需新 IPA）
+
+1. 在系统快捷指令 App 中复制之前成功的快捷指令，将副本准确命名为“借拍相册跳转”。
+2. 保留两个动作“URL → 打开 URL”。清空第一个 URL 动作里的固定照片链接，轻点文本栏，在键盘上方变量条中选择“快捷指令输入”（必要时左右滑动变量条，或通过“选择变量”选取）。字段中应只有一个蓝色变量记号；不要输入文字“快捷指令输入”。
+3. 第二个“打开 URL”继续使用前一个 URL 动作的输出，保存后退出编辑器。
+4. 从 Safari 地址栏打开测试链接：`shortcuts://run-shortcut?name=<URL 编码的快捷指令名称>&input=text&text=<完整编码的 C 链接>`。外层 text 必须完整保留内层 uuid 与 albumuuid；内层的 & 编码为 %26。设备专用链接留在忽略的 artifacts 中，未上传至仓库。
+5. 核对目标照片、退出大图后的相册及相邻照片；记录初次确认提示，以及是否短暂显示 / 停留在快捷指令界面。成功后才验证生产小组件发起、动态来源相册及文件夹中实际包含照片的子相册。
+
+操作依据：[Apple iOS 18 变量使用](https://support.apple.com/zh-cn/guide/shortcuts/apdd02c2780c/8.0/ios/18.0)、[从 URL 运行快捷指令及 text 输入](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0)。外部调用和小组件发起尚未真机验证；编辑器运行固定链接的成功不替代它们。
+
+## 0.1.2 历史诊断操作
 
 0.1.1 增加“数据管理”：清空测试记录保留目标与链接设置；重置全部诊断数据清空记录、目标和链接设置。两个操作都清理本机持久化数据，执行测试期间禁用。覆盖安装时保留同一签名身份即可继续使用已有数据，不需要每轮重装。“只检查系统解析结果”也会加入报告，明确标记未执行跳转；报告版本来自实际 Info.plist。
 
@@ -47,9 +63,9 @@
 
 第四轮：2026-10-08，机主明确确认把诊断 App 的 C 链接放入系统快捷指令，使用“URL → 打开 URL”从编辑器运行后，目标照片成功打开，返回页面及相邻照片均属于选定相册。系统为未越狱 iOS 18.7.8。这是具体调用方与运行方式的成功证据，未验证普通第三方 App / 扩展能获得相同结果，也未证明实际经过哪条 Shortcuts 内部回退分支。[Apple iOS 18 URL 动作说明](https://support.apple.com/guide/shortcuts/apd68802640c/8.0/ios/18.0) 支持这种手动测试，但没有承诺内部 photos scheme 可用。
 
-0.1.2 / build 3 增加方式 6 / 7：加载 IntentsCore 和 FrontBoardServices，创建目标 bundle 固定为 `com.apple.mobileslideshow`、URL 为当前预设、无 userActivity、retainsSiri=false 的 INCAppLaunchRequest，通过 `performWithService:retainsSiri:completionHandler:` 使用默认 Shell 端点。该方法复用 Shortcuts 启动请求父类的实现，不调用外层的 CarPlay 检测。类、参数和返回类型均先核对。主应用记录派发时 active / inactive / background；中转记录扩展实际 bundle 与宿主 hook。保持真实调用身份，没有声明系统 entitlement 或退回旧 LS 方法。保留原始 NSError，包括 NSUnderlyingError / failureReason 与有界 userInfo。请求超时清理，晚到 / 重复回调只完成一次。真机调用能力待验证，借拍生产点击行为尚未接入它。
+0.1.2 / build 3 增加方式 6 / 7：加载 IntentsCore 和 FrontBoardServices，创建目标 bundle 固定为 `com.apple.mobileslideshow`、URL 为当前预设、无 userActivity、retainsSiri=false 的 INCAppLaunchRequest，通过 `performWithService:retainsSiri:completionHandler:` 使用默认 Shell 端点。该方法复用 Shortcuts 启动请求父类的实现，不调用外层的 CarPlay 检测。类、参数和返回类型均先核对。主应用记录派发时 active / inactive / background；中转记录扩展实际 bundle 与宿主 hook。保持真实调用身份，没有声明系统 entitlement 或退回旧 LS 方法。保留原始 NSError，包括 NSUnderlyingError / failureReason 与有界 userInfo。请求超时清理，晚到 / 重复回调只完成一次。这两项随后已被真机确认因 Request is not trusted 拒绝；原始错误见本文当前结果。借拍生产点击行为尚未接入它。
 
-如果两项均被拒绝，系统快捷指令可作为后续中转方案：[Apple 从 URL 运行快捷指令](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0) 支持 `shortcuts://run-shortcut?name=…&input=text&text=…`。需将快捷指令改为接收输入，并验证外部启动与动态照片链接；目前只验证了编辑器内运行固定 C 链接，尚未验证小组件发起、中转界面或首次许可行为。
+两项直接调用已被拒绝，下一步验证系统快捷指令中转：[Apple 从 URL 运行快捷指令](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0) 支持 `shortcuts://run-shortcut?name=…&input=text&text=…`。需将快捷指令改为接收输入，并验证外部启动与动态照片链接；目前只验证了编辑器内运行固定 C 链接，尚未验证小组件发起、中转界面或首次许可行为。
 
 `PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。方式 1–5 保留原有 UIApplication / LS 主应用与中转派发，6–7 使用直接系统启动。私有入口不保证每个系统版本可用。
 
@@ -59,6 +75,6 @@ PhotoKit 双向核对照片与相册云标识；云映射不可用时禁用需�
 
 编译：`bash scripts/build_photos_navigation_probe.sh`（macOS / Xcode / xcodeproj gem）。只进行 9 项标识与 URL 检查、iPhone 编译和包结构检查，不运行桌面小组件自动化。构建通过仍需机主用 iOS 18.7.8 真机验证。
 
-0.1.2 / build 3 的[构建 37656298590](https://github.com/kevin3627713/session-camera/actions/runs/37656298590) 已通过，源码提交 `50a96e8752efcebf9e195b15752489cec709191c`。9 项检查通过；主应用与中转扩展版本一致且二进制均包含 INCAppLaunchRequest / 直接派发选择器。下载后的 IPA 与 CI 哈希核对一致：226,834 字节，SHA-256 `8b9232a17a38b3ced30807e65ddf9a315d5bc0bb8e4d66c2e98625230189665f`。安装包见 [0.1.2 发行版](https://github.com/kevin3627713/session-camera/releases/tag/photos-navigation-probe-v0.1.2)。新直接派发方式仍待真机测试。
+0.1.2 / build 3 的[构建 37656298590](https://github.com/kevin3627713/session-camera/actions/runs/37656298590) 已通过，源码提交 `50a96e8752efcebf9e195b15752489cec709191c`。9 项检查通过；主应用与中转扩展版本一致且二进制均包含 INCAppLaunchRequest / 直接派发选择器。下载后的 IPA 与 CI 哈希核对一致：226,834 字节，SHA-256 `8b9232a17a38b3ced30807e65ddf9a315d5bc0bb8e4d66c2e98625230189665f`。安装包见 [0.1.2 发行版](https://github.com/kevin3627713/session-camera/releases/tag/photos-navigation-probe-v0.1.2)。随后真机确认新直接派发在主应用和中转扩展中均被信任检查拒绝。
 
 解析格式依据：[iOS 18.2 PXProgrammaticNavigationDestination](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/PhotosUICore.framework/PXProgrammaticNavigationDestination.m)。标识映射依据：[Apple cloudIdentifierMappings](https://developer.apple.com/documentation/photos/phphotolibrary/cloudidentifiermappings(forlocalidentifiers:))。

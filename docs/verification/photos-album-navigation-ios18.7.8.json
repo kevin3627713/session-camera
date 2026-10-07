@@ -6,7 +6,8 @@
   "installation": "User self-signed standalone diagnostic app",
   "diagnosticVersions": [
     "0.1.0 build 1",
-    "0.1.1 build 2"
+    "0.1.1 build 2",
+    "0.1.2 build 3"
   ],
   "parser": "PXProgrammaticNavigationDestination",
   "internalURLShapes": {
@@ -108,7 +109,7 @@
       "dispatched": false
     }
   ],
-  "conclusion": "Original five dispatch routes failed; the same C URL succeeds from the system Shortcuts editor and retains the selected album. Third-party direct INCAppLaunchRequest / FrontBoard dispatch and widget integration remain unverified.",
+  "conclusion": "The C URL succeeds from the system Shortcuts editor and retains the selected album. Original five dispatch routes failed; direct INCAppLaunchRequest / FrontBoard launch also failed from the active app and Share extension with underlying Security / Request is not trusted. External shortcut launch with dynamic text input and widget integration remain unverified.",
   "limitations": [
     "Error 115 does not establish the unique underlying denial reason",
     "Results do not exhaust undiscovered mechanisms or different signing environments",
@@ -123,7 +124,44 @@
     "evidence": "Explicit confirmation by device owner",
     "targetPhotoOpened": true,
     "returnAndAdjacentPhotosRemainInSelectedAlbum": true,
-    "thirdPartyDirectLaunchTested": false,
-    "widgetInitiatedShortcutTested": false
-  }
+    "thirdPartyDirectLaunchTested": true,
+    "widgetInitiatedShortcutTested": false,
+    "thirdPartyDirectLaunchSucceeded": false
+  },
+  "lastUpdated": "2026-10-08",
+  "directFrontBoardResults": [
+    {
+      "route": "frontboard",
+      "candidate": "C",
+      "attempts": 1,
+      "bothTargetsParsed": true,
+      "revealMode": 1,
+      "accepted": false,
+      "stage": "dispatch",
+      "callerContext": "application-active",
+      "errorDomain": "FBSOpenApplicationServiceErrorDomain",
+      "errorCode": 4,
+      "underlyingErrorDomain": "FBSOpenApplicationErrorDomain",
+      "underlyingErrorCode": 3,
+      "underlyingReason": "Request is not trusted.",
+      "observation": "No response"
+    },
+    {
+      "route": "share-frontboard",
+      "candidate": "C",
+      "attempts": 1,
+      "bothTargetsParsed": true,
+      "revealMode": 1,
+      "accepted": false,
+      "stage": "dispatch",
+      "callerContext": "share-extension",
+      "errorDomain": "FBSOpenApplicationServiceErrorDomain",
+      "errorCode": 4,
+      "underlyingErrorDomain": "FBSOpenApplicationErrorDomain",
+      "underlyingErrorCode": 3,
+      "underlyingReason": "Request is not trusted.",
+      "observation": "No response",
+      "hostHookInstalled": true
+    }
+  ]
 }
