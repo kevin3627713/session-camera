@@ -20,9 +20,13 @@
 
 机主随后在同一未越狱 iOS 18.7.8 上完成 0.1.1 的第二轮测试。B / 方式 4：解析器读取真实相册云标识，type=8、revealMode=3（initialPosition），中转普通派发 accepted=true；机主确认进入所选的具体相册。H / 仅解析：只读取照片云标识，三个相册目标字段（UUID、本机标识、云标识）均为 null，说明附加的 albumuuid 没有进入目标。I / 仅解析：只读取相册云标识，三个照片目标字段均为 null，说明附加的 revealassetuuid 没有进入目标。H/I 没有实际派发，不能将其记为跳转失败。相册和照片云映射均无错误。记录不包含真实标识或相册名称。
 
-由此在该真机上验证：现有外部 asset / album 入口分别支持单张照片和指定相册，但 H/I 的组合参数不会被读取。内部 C/D 组合参数被读取，已测的中转敏感派发失败；需要区分 URL 解析与调用环境。主应用普通 URL、主应用私有普通 / 敏感派发、中转私有普通派发对 C/D 尚未测试。现有 0.1.1 已包含全部方式，后续不需要重新编译。
+机主第三轮完成 C/D × 方式 1–4 的八次测试，全部无反应。核对两份真实报告后，C/D × 五种派发方式合计十次：每次解析器均识别正确的照片与相册 UUID；C 的 revealMode=1，D 的 revealMode=2。UIApplication.open 两次均 accepted=false（此回调不提供 NSError）；主应用私有普通 / 敏感、中转私有普通 / 敏感的八次均 accepted=false、LSApplicationWorkspaceErrorDomain / 115。中转报告的宿主 hook 正常，主应用派发报告的 bundle 属于主应用，未把中转结果代替主应用结果。归纳数据见 [真机结果](../../docs/verification/photos-album-navigation-ios18.7.8.json)。
 
-下一轮通过“清空测试记录”保留已选目标，分别测试 C/D × 方式 1–4，每次返回记录实际页面。相同方式下的照片大图 C 和相册内定位 D 分别验证；不重复方式 5。每次测试前把系统 Photos 返回相册总列表，排除上一轮页面状态。如果某项确实在所选相册中定位目标照片，应优先记录返回位置和浏览范围。不能仅凭通用错误 115 确认唯一系统权限原因，也不能把已测的 Share 环境结果代替未测的主应用环境。
+研究结论：在机主的未越狱 iOS 18.7.8、自签名安装环境下，当前测试的 URL 路线无法在指定相册中自动定位原照片。外部 asset / album 分别可打开原照片大图 / 所选相册，但 H/I 的附加上下文被忽略；内部 C/D 能构造正确目标，但五种调用方式均被系统拒绝。这是对已测 URL 与调用条件的结论，不是对所有未来或未发现机制的证明。错误 115 仍不足以唯一确定具体拒绝原因。
+
+目前暂停该 URL 路线，无新机制证据时不继续重复枚举同一内部 scheme 的标识写法或编译 IPA。E/F/G 仍使用同一内部 scheme，当前没有证据表明换成本机 / 云标识能绕过启动派发拒绝。保留诊断源码、预设和 0.1.1 安装包。借拍现有单照片大图跳转沿用；独立的“打开来源相册”能力已通过 B 真机验证，但尚未作为点击选项接入借拍，也未实现自动定位当前照片。
+
+敏感 URL 的权限检查可参考另一位开发者的 [SwiftUI 实测](https://kyleye.top/posts/explore-swiftui-link/)：设置隐私 URL 的模拟器示例需要系统 opensensitiveurl entitlement。该例不能替代本机 Photos 的失败原因诊断。[Apple TN2415](https://developer.apple.com/library/archive/technotes/tn2415/_index.html) 说明 entitlement 受代码签名、描述文件及 OS 校验；不能用普通自签名随意声明系统权限来声称已经解决。
 
 `PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。五种方式分别为 UIApplication.open、主应用私有普通 / 敏感派发、中转扩展私有普通 / 敏感派发。私有入口不保证每个系统版本可用。
 

@@ -58,7 +58,9 @@
 
 以上无标识测试之后，已在 `research/photos-album-navigation-probe-ios18` 分支建立独立“照片跳转诊断”App，读取并双向核对真机的真实照片 / 相册标识。机主在未越狱 iOS 18.7.8 上确认：外部单照片入口 A / 中转普通派发可在所有照片打开大图；外部相册入口 B / 中转普通派发可进入所选的具体相册。内部 C/D 都正确解析照片与相册 UUID，但中转敏感派发均返回 accepted=false、LSApplicationWorkspaceErrorDomain / 115。外部组合 H 的 albumuuid、I 的 revealassetuuid 在该真机解析结果中未被读取；H/I 只检查解析，没有实际派发。完整归纳见 [诊断说明](../native/PhotosNavigationProbe/README.md)。
 
-目前没有经该真机验证、可从外部同时指定相册和照片的可用跳转。0.1.1 诊断包已包含其余调用方式，可继续检验主应用与中转环境，不需要每轮编译；清空测试记录可隔离每轮报告并保留当前目标。现有借拍生产 Share 中转仍限制为已核对的单照片 `photos-navigation://asset` URL，未把相册导航接入产品。已测的 Share 敏感派发失败不能视为所有私有机制的完整排除，通用错误 115 不能唯一确定权限原因。
+机主第三轮完成 C/D × 其余四种方式的八次测试。结合第一轮，总计 C/D × 五种派发方式的十次尝试全部无反应：照片与相册 UUID 每次均被正确解析，UIApplication.open 返回 false，其余私有普通 / 敏感派发均返回 LSApplicationWorkspaceErrorDomain / 115，包含主应用与中转扩展两种调用环境。[归纳结果](verification/photos-album-navigation-ios18.7.8.json)不保存真实标识、相册名称或签名身份。
+
+目前结论：已测 URL 路线在该未越狱 iOS 18.7.8 自签名环境下不可用于指定相册内定位照片，暂停同一路线的参数枚举与重复编译，保留独立诊断源码和 0.1.1 安装包。现有借拍生产 Share 中转仍限制为已核对的单照片 `photos-navigation://asset` URL，未把相册导航接入产品；B 已验证单独打开来源相册，但不会自动定位当前照片。结论仅覆盖已测机制和安装条件；通用错误 115 不能唯一确定权限原因，也不能排除尚未发现的不同机制。
 
 ## 不显示借拍界面的 URL 派发研究（2026-10-06）
 
