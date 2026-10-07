@@ -68,6 +68,7 @@ struct ProbeCandidate: Identifiable {
 enum ProbeRoute: String, CaseIterable, Identifiable {
     case standard, direct, sensitive, share, shareSensitive = "share-sensitive"
     case frontBoard = "frontboard", shareFrontBoard = "share-frontboard"
+    case shortcutRunner = "shortcut-runner", shareShortcutRunner = "share-shortcut-runner"
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -78,6 +79,8 @@ enum ProbeRoute: String, CaseIterable, Identifiable {
         case .shareSensitive: return "5 · 中转扩展：私有敏感派发"
         case .frontBoard: return "6 · 主应用：直接系统启动"
         case .shareFrontBoard: return "7 · 中转扩展：直接系统启动"
+        case .shortcutRunner: return "8 · 主应用：快捷指令执行器"
+        case .shareShortcutRunner: return "9 · 中转扩展：快捷指令执行器"
         }
     }
 }

@@ -127,7 +127,7 @@ static NSMutableSet *PNRequests(void) {
 }
 @end
 
-static void PNDispatchShare(NSURL *url, BOOL sensitive, BOOL frontBoard, void (^completion)(NSDictionary *)) {
+static void PNDispatchShare(NSURL *url, BOOL sensitive, NSString *engine, NSString *shortcutName, void (^completion)(NSDictionary *)) {
     PNShareRequest *request = [PNShareRequest new];
     request.completion = completion;
     request.nonce = NSUUID.UUID.UUIDString;
@@ -173,7 +173,7 @@ static void PNDispatchShare(NSURL *url, BOOL sensitive, BOOL frontBoard, void (^
         }];
         NSExtensionItem *item = [NSExtensionItem new];
         item.userInfo = @{@"probeNonce": request.nonce, @"probeURL": url.absoluteString, @"probeSensitive": @(sensitive),
-                          @"probeEngine": frontBoard ? @"frontboard" : @"workspace"};
+                          @"probeEngine": engine, @"probeShortcutName": shortcutName ?: @""};
         [extension beginExtensionRequestWithInputItems:@[item] completion:^(NSUUID *uuid) {
             BOOL finished, cancel;
             @synchronized (request) {
@@ -182,7 +182,7 @@ static void PNDispatchShare(NSURL *url, BOOL sensitive, BOOL frontBoard, void (^
             if (finished) { if (cancel && uuid) [weakExtension cancelExtensionRequestWithIdentifier:uuid]; return; }
             if (!uuid) [request finish:PNFailure(@"start", nil, @"中转扩展启动失败") cancel:NO];
         }];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (frontBoard ? 20 : 15) * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, ([engine isEqual:@"workspace"] ? 15 : 20) * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
             [weakRequest finish:PNFailure(@"timeout", nil, @"中转请求超时") cancel:YES];
         });
     } @catch (NSException *exception) {
@@ -191,9 +191,13 @@ static void PNDispatchShare(NSURL *url, BOOL sensitive, BOOL frontBoard, void (^
 }
 
 void PNDispatchThroughShare(NSURL *url, BOOL sensitive, void (^completion)(NSDictionary *)) {
-    PNDispatchShare(url, sensitive, NO, completion);
+    PNDispatchShare(url, sensitive, @"workspace", nil, completion);
 }
 
 void PNDispatchFrontBoardThroughShare(NSURL *url, void (^completion)(NSDictionary *)) {
-    PNDispatchShare(url, NO, YES, completion);
+    PNDispatchShare(url, NO, @"frontboard", nil, completion);
+}
+
+void PNDispatchShortcutRunnerThroughShare(NSURL *url, NSString *shortcutName, void (^completion)(NSDictionary *)) {
+    PNDispatchShare(url, NO, @"shortcut-runner", shortcutName, completion);
 }

@@ -19,6 +19,7 @@ import UIKit
     @Published var route = ProbeRoute.share
     @Published var customURL = ""
     @Published var useCustom = false
+    @Published var shortcutName = "借拍相册跳转"
     @Published var busy = false
     @Published var message = ""
     @Published var records: [ProbeRecord] = []
@@ -45,6 +46,7 @@ import UIKit
             route = ProbeRoute(rawValue: store.string(forKey: "probeRoute") ?? "share") ?? .share
             candidateID = store.string(forKey: "probeCandidate") ?? "A"
             customURL = store.string(forKey: "probeCustomURL") ?? ""
+            shortcutName = store.string(forKey: "probeShortcutName") ?? "借拍相册跳转"
         }
         guard status == .authorized else { albums = []; identifiers = nil; return }
         Task {
@@ -105,10 +107,15 @@ import UIKit
         guard !busy, let ids = identifiers, let url = currentURL else { return }
         busy = true; message = "正在解析与派发…"
         let method = route
+        let workflowName = shortcutName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if (method == .shortcutRunner || method == .shareShortcutRunner) && (workflowName.isEmpty || workflowName.utf8.count > 1024) {
+            message = "请填写有效的快捷指令名称"; busy = false; return
+        }
         let id = beginRecord(ids, url: url, route: method.rawValue)
         store.set(method.rawValue, forKey: "probeRoute")
         store.set(candidateID, forKey: "probeCandidate")
         store.set(customURL, forKey: "probeCustomURL")
+        store.set(workflowName, forKey: "probeShortcutName")
         Task {
             let parser = await Task.detached { Self.json(PNInspectURL(url)) }.value
             update(id) { $0.parser = parser }
@@ -137,6 +144,18 @@ import UIKit
                     let context = state == .active ? "application-active" : (state == .background ? "application-background" : "application-inactive")
                     PNFrontBoardDispatch(url, context, callback)
                 }
+            case .shortcutRunner, .shareShortcutRunner:
+                let callback: ([AnyHashable: Any]) -> Void = { result in
+                    let text = Self.json(result)
+                    Task { @MainActor in self.finish(id, text) }
+                }
+                if method == .shareShortcutRunner {
+                    PNDispatchShortcutRunnerThroughShare(url, workflowName, callback)
+                } else {
+                    let state = UIApplication.shared.applicationState
+                    let context = state == .active ? "application-active" : (state == .background ? "application-background" : "application-inactive")
+                    PNShortcutRunnerDispatch(url, workflowName, context, callback)
+                }
             }
         }
     }
@@ -163,11 +182,12 @@ import UIKit
     func resetData() {
         guard !busy else { return }
         selectionNonce = UUID()
-        for key in ["probeRecords", "probeRoute", "probeCandidate", "probeCustomURL", "probeAlbumID", "probeAssetID"] {
+        for key in ["probeRecords", "probeRoute", "probeCandidate", "probeCustomURL", "probeAlbumID", "probeAssetID", "probeShortcutName"] {
             store.removeObject(forKey: key)
         }
         records = []; album = nil; assetID = ""; identifiers = nil
         candidateID = "A"; route = .share; customURL = ""; useCustom = false
+        shortcutName = "借拍相册跳转"
         message = "诊断数据已重置，请重新选择相册和照片。"
     }
 
@@ -258,9 +278,16 @@ struct ProbeHome: View {
                             Picker("派发方式", selection: $model.route) {
                                 ForEach(ProbeRoute.allCases) { item in Text(item.title).tag(item) }
                             }
+                            if model.route == .shortcutRunner || model.route == .shareShortcutRunner {
+                                TextField("快捷指令名称", text: $model.shortcutName)
+                                    .autocorrectionDisabled().textInputAutocapitalization(.never)
+                                    .disabled(model.busy)
+                                Text("使用已成功接收动态输入的快捷指令；URL 动作中应放置蓝色的‘快捷指令输入’变量。此处直接调用执行器，不打开 shortcuts:// 链接。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                             Button("只检查系统解析结果", action: model.inspectOnly).disabled(model.busy || model.currentURL == nil)
                             Button("执行跳转测试", action: model.run).disabled(model.busy || model.currentURL == nil)
-                            Text("本轮选择 C，只测试方式 6、7；打开照片后核对返回页面和相邻照片是否属于目标相册。")
+                            Text("本轮选择 C，只测试方式 8、9；记录是否出现完整快捷指令界面，并核对照片与相册。旧方式无需重测。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }

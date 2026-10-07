@@ -19,7 +19,7 @@ make = lambda do |name, kind, suffix, files|
       'SWIFT_VERSION' => '5.0', 'SWIFT_STRICT_CONCURRENCY' => 'minimal',
       'CLANG_ENABLE_MODULES' => 'YES', 'CLANG_ENABLE_OBJC_ARC' => 'YES',
       'TARGETED_DEVICE_FAMILY' => '1', 'IPHONEOS_DEPLOYMENT_TARGET' => '18.0',
-      'CODE_SIGNING_ALLOWED' => 'NO', 'CURRENT_PROJECT_VERSION' => '3', 'MARKETING_VERSION' => '0.1.2',
+      'CODE_SIGNING_ALLOWED' => 'NO', 'CURRENT_PROJECT_VERSION' => '4', 'MARKETING_VERSION' => '0.1.3',
       'SWIFT_OBJC_BRIDGING_HEADER' => File.join(source, 'ProbeBridge.h')
     })
   end

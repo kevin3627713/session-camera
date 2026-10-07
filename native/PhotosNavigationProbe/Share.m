@@ -25,7 +25,10 @@ static void PNHandleContext(id context) {
         }
         if (![input[@"probeURL"] isKindOfClass:NSString.class] ||
             ![input[@"probeSensitive"] isKindOfClass:NSNumber.class] ||
-            ![@[@"workspace", @"frontboard"] containsObject:input[@"probeEngine"]] ||
+            ![@[@"workspace", @"frontboard", @"shortcut-runner"] containsObject:input[@"probeEngine"]] ||
+            ([input[@"probeEngine"] isEqual:@"shortcut-runner"] &&
+                (![input[@"probeShortcutName"] isKindOfClass:NSString.class] || ![input[@"probeShortcutName"] length] ||
+                 [input[@"probeShortcutName"] lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 1024)) ||
             ![[NSUUID alloc] initWithUUIDString:input[@"probeNonce"]]) {
             [(NSExtensionContext *)owner cancelRequestWithError:[NSError errorWithDomain:@"PhotosNavigationProbe" code:2
                 userInfo:@{NSLocalizedDescriptionKey: @"诊断中转请求无效"}]];
@@ -39,7 +42,9 @@ static void PNHandleContext(id context) {
             reply.userInfo = @{@"probeNonce": input[@"probeNonce"], @"probeResult": result};
             [(NSExtensionContext *)owner completeRequestReturningItems:@[reply] completionHandler:nil];
         };
-        if ([input[@"probeEngine"] isEqual:@"frontboard"]) {
+        if ([input[@"probeEngine"] isEqual:@"shortcut-runner"]) {
+            PNShortcutRunnerDispatch(url, input[@"probeShortcutName"], @"share-extension", replyWithResult);
+        } else if ([input[@"probeEngine"] isEqual:@"frontboard"]) {
             PNFrontBoardDispatch(url, @"share-extension", replyWithResult);
         } else {
             dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{

@@ -109,7 +109,7 @@
       "dispatched": false
     }
   ],
-  "conclusion": "The C URL succeeds from the system Shortcuts editor and retains the selected album. Original five dispatch routes failed; direct INCAppLaunchRequest / FrontBoard launch also failed from the active app and Share extension with underlying Security / Request is not trusted. External shortcut launch with dynamic text input and widget integration remain unverified.",
+  "conclusion": "The C URL succeeds from both the system Shortcuts editor and an external run-shortcut URL with dynamic text input, retaining the selected album. The external relay visibly presents Shortcuts for approximately 0.5 seconds according to the device owner. Original five dispatch routes failed; direct INCAppLaunchRequest / FrontBoard launch also failed from the active app and Share extension with underlying Security / Request is not trusted. Borrow widget integration and execution without the full Shortcuts interface remain unverified.",
   "limitations": [
     "Error 115 does not establish the unique underlying denial reason",
     "Results do not exhaust undiscovered mechanisms or different signing environments",
@@ -129,6 +129,41 @@
     "thirdPartyDirectLaunchSucceeded": false
   },
   "lastUpdated": "2026-10-08",
+  "externalShortcutsRelayResult": {
+    "date": "2026-10-08",
+    "entryPoint": "shortcuts://run-shortcut?name=<encodedName>&input=text&text=<encodedCURL>",
+    "candidate": "C",
+    "input": "Dynamic text containing the complete photo and album UUID URL",
+    "evidence": "Device owner reported a loading phase in Shortcuts followed by the photo opening in the target album",
+    "targetPhotoOpened": true,
+    "selectedAlbumPreserved": true,
+    "fullShortcutsInterfaceObserved": true,
+    "estimatedVisibleLoadingSeconds": 0.5,
+    "timingIsUserEstimate": true,
+    "widgetInitiated": false
+  },
+  "backgroundExecutionResearch": {
+    "date": "2026-10-08",
+    "staticImplementationVersion": "iOS 18.2 (22C152)",
+    "staticImplementationIsDeviceVerification": false,
+    "urlBackgroundParameterFound": false,
+    "systemWidgetClient": "WFWidgetWorkflowRunnerClient",
+    "systemWidgetClientCallsSeparateRunner": true,
+    "runnerChecksCallerAuditTokenAndSignedEntitlements": true,
+    "thirdPartyPrivateRunnerTestedOnDevice": false,
+    "systemShortcutsWidgetComparisonTestedOnDevice": true,
+    "systemShortcutsWidgetResult": {
+      "evidence": "Device owner selected: directly enters Photos, or only a progress indicator",
+      "fixedCandidate": "C",
+      "fullShortcutsInterfaceObserved": false,
+      "targetPhotoOpened": true,
+      "selectedAlbumPreserved": null,
+      "limitations": "The reply establishes the absence of the full Shortcuts interface; album and adjacent-photo checks were not separately reported in this comparison"
+    },
+    "systemActionExtensionRequiresSingleUseWorkflowToken": true,
+    "conclusion": "The owner confirmed that the system Shortcuts widget opens Photos without the full Shortcuts interface. A self-signed caller's ability to use the shared runner remains unverified. Standalone probe 0.1.3 adds main-app and Share runner tests; Borrow production source is unchanged.",
+    "report": "../SHORTCUTS_BACKGROUND_EXECUTION.md"
+  },
   "directFrontBoardResults": [
     {
       "route": "frontboard",

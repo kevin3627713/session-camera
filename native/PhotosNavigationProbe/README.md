@@ -1,4 +1,4 @@
-# 照片跳转诊断 0.1.2
+# 照片跳转诊断 0.1.3
 
 独立 iPhone App，Bundle ID `com.kevin3627713.photosnavigationprobe`，内置中转扩展 `.share`，最低 iOS 18.0。工程和编译流程独立于借拍 Runner；不会将诊断界面或代码加入借拍 IPA。源代码保存在 `research/photos-album-navigation-probe-ios18` 分支。
 
@@ -6,7 +6,7 @@
 
 0.1.2 的 C / 方式 6、7 已完成真机测试。照片与相册 UUID 解析正确，主应用派发时为 active，中转 hook 正常。两项均 accepted=false：外层 FBSOpenApplicationServiceErrorDomain / 4（InvalidRequest），底层 FBSOpenApplicationErrorDomain / 3（Security），明确原因 `Request is not trusted.`。当前直接启动实现被系统信任检查拒绝；不再要求重复这两项，也不将其接入借拍生产小组件。不能据此认定所有私有路径绝对不可用或指定某个 entitlement 缺失。
 
-系统快捷指令编辑器内的 C 链接已由机主确认成功，保留指定相册。下一步只测试外部启动和动态输入，不编译新的 IPA。真实目标标识仅用于机主本机的测试链接；仓库报告保留归纳结果。
+系统快捷指令编辑器内的 C 链接已由机主确认成功，保留指定相册。随后，外部 `shortcuts://run-shortcut` 动态 text 输入也成功：机主观察到快捷指令界面约 0.5 秒加载，然后在目标相册内打开照片。这是机主的时间估计。机主随后确认系统快捷指令小组件能够直接进入照片，或仅显示进度提示，没有完整快捷指令界面；借拍小组件仍未接入。0.1.3 增加方式 8 / 9，验证普通自签主应用与自有后台中转能否调用同一父类执行器；操作见[发行说明](RELEASE_NOTES.md)，机制与权限边界见[后台执行调查](../../docs/SHORTCUTS_BACKGROUND_EXECUTION.md)。真实目标标识仅用于机主本机的测试链接；仓库报告保留归纳结果。
 
 ## 外部快捷指令中转测试（无需新 IPA）
 
@@ -16,7 +16,7 @@
 4. 从 Safari 地址栏打开测试链接：`shortcuts://run-shortcut?name=<URL 编码的快捷指令名称>&input=text&text=<完整编码的 C 链接>`。外层 text 必须完整保留内层 uuid 与 albumuuid；内层的 & 编码为 %26。设备专用链接留在忽略的 artifacts 中，未上传至仓库。
 5. 核对目标照片、退出大图后的相册及相邻照片；记录初次确认提示，以及是否短暂显示 / 停留在快捷指令界面。成功后才验证生产小组件发起、动态来源相册及文件夹中实际包含照片的子相册。
 
-操作依据：[Apple iOS 18 变量使用](https://support.apple.com/zh-cn/guide/shortcuts/apdd02c2780c/8.0/ios/18.0)、[从 URL 运行快捷指令及 text 输入](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0)。外部调用和小组件发起尚未真机验证；编辑器运行固定链接的成功不替代它们。
+操作依据：[Apple iOS 18 变量使用](https://support.apple.com/zh-cn/guide/shortcuts/apdd02c2780c/8.0/ios/18.0)、[从 URL 运行快捷指令及 text 输入](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0)。上述外部调用已由机主确认成功，但约 0.5 秒显示快捷指令界面；借拍小组件发起尚未真机验证。
 
 ## 0.1.2 历史诊断操作
 
@@ -65,7 +65,7 @@
 
 0.1.2 / build 3 增加方式 6 / 7：加载 IntentsCore 和 FrontBoardServices，创建目标 bundle 固定为 `com.apple.mobileslideshow`、URL 为当前预设、无 userActivity、retainsSiri=false 的 INCAppLaunchRequest，通过 `performWithService:retainsSiri:completionHandler:` 使用默认 Shell 端点。该方法复用 Shortcuts 启动请求父类的实现，不调用外层的 CarPlay 检测。类、参数和返回类型均先核对。主应用记录派发时 active / inactive / background；中转记录扩展实际 bundle 与宿主 hook。保持真实调用身份，没有声明系统 entitlement 或退回旧 LS 方法。保留原始 NSError，包括 NSUnderlyingError / failureReason 与有界 userInfo。请求超时清理，晚到 / 重复回调只完成一次。这两项随后已被真机确认因 Request is not trusted 拒绝；原始错误见本文当前结果。借拍生产点击行为尚未接入它。
 
-两项直接调用已被拒绝，下一步验证系统快捷指令中转：[Apple 从 URL 运行快捷指令](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0) 支持 `shortcuts://run-shortcut?name=…&input=text&text=…`。需将快捷指令改为接收输入，并验证外部启动与动态照片链接；目前只验证了编辑器内运行固定 C 链接，尚未验证小组件发起、中转界面或首次许可行为。
+两项直接调用已被拒绝，随后改为系统快捷指令中转：[Apple 从 URL 运行快捷指令](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0) 支持 `shortcuts://run-shortcut?name=…&input=text&text=…`。机主已将快捷指令改为接收输入，确认外部动态照片链接成功，在目标相册中打开照片；同时观察到约 0.5 秒完整快捷指令界面。尚未验证借拍小组件发起，未记录首次许可过程。进一步调查系统小组件执行器和后台权限，见[后台执行调查](../../docs/SHORTCUTS_BACKGROUND_EXECUTION.md)。
 
 `PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。方式 1–5 保留原有 UIApplication / LS 主应用与中转派发，6–7 使用直接系统启动。私有入口不保证每个系统版本可用。
 

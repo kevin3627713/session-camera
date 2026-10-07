@@ -31,14 +31,16 @@ with zipfile.ZipFile(path) as archive:
     share = plistlib.loads(archive.read(root + 'PlugIns/PhotosNavigationShare.appex/Info.plist'))
     assert info['CFBundleIdentifier'] == 'com.kevin3627713.photosnavigationprobe'
     assert share['CFBundleIdentifier'] == info['CFBundleIdentifier'] + '.share'
-    assert info['CFBundleShortVersionString'] == share['CFBundleShortVersionString'] == '0.1.2'
-    assert info['CFBundleVersion'] == share['CFBundleVersion'] == '3'
+    assert info['CFBundleShortVersionString'] == share['CFBundleShortVersionString'] == '0.1.3'
+    assert info['CFBundleVersion'] == share['CFBundleVersion'] == '4'
     assert not any('SessionWidgets' in name or name.endswith('.mobileprovision') for name in archive.namelist())
     assert archive.read(root + info['CFBundleExecutable'])[:4] == b'\xcf\xfa\xed\xfe'
     assert archive.read(root + 'PlugIns/PhotosNavigationShare.appex/' + share['CFBundleExecutable'])[:4] == b'\xcf\xfa\xed\xfe'
     for executable in [root + info['CFBundleExecutable'], root + 'PlugIns/PhotosNavigationShare.appex/' + share['CFBundleExecutable']]:
         assert b'INCAppLaunchRequest' in archive.read(executable)
         assert b'performWithService:retainsSiri:completionHandler:' in archive.read(executable)
+        assert b'WFWorkflowRunnerClient' in archive.read(executable)
+        assert b'runWorkflowWithRequest:descriptor:completion:' in archive.read(executable)
     report = {'bundle': info['CFBundleIdentifier'], 'shareBundle': share['CFBundleIdentifier'],
               'version': info['CFBundleShortVersionString'], 'build': info['CFBundleVersion'],
               'size': path.stat().st_size, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
