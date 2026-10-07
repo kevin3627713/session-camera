@@ -127,7 +127,7 @@ static NSMutableSet *PNRequests(void) {
 }
 @end
 
-void PNDispatchThroughShare(NSURL *url, BOOL sensitive, void (^completion)(NSDictionary *)) {
+static void PNDispatchShare(NSURL *url, BOOL sensitive, BOOL frontBoard, void (^completion)(NSDictionary *)) {
     PNShareRequest *request = [PNShareRequest new];
     request.completion = completion;
     request.nonce = NSUUID.UUID.UUIDString;
@@ -172,7 +172,8 @@ void PNDispatchThroughShare(NSURL *url, BOOL sensitive, void (^completion)(NSDic
             [weakRequest finish:PNFailure(@"interrupted", nil, @"中转请求中断") cancel:NO];
         }];
         NSExtensionItem *item = [NSExtensionItem new];
-        item.userInfo = @{@"probeNonce": request.nonce, @"probeURL": url.absoluteString, @"probeSensitive": @(sensitive)};
+        item.userInfo = @{@"probeNonce": request.nonce, @"probeURL": url.absoluteString, @"probeSensitive": @(sensitive),
+                          @"probeEngine": frontBoard ? @"frontboard" : @"workspace"};
         [extension beginExtensionRequestWithInputItems:@[item] completion:^(NSUUID *uuid) {
             BOOL finished, cancel;
             @synchronized (request) {
@@ -181,10 +182,18 @@ void PNDispatchThroughShare(NSURL *url, BOOL sensitive, void (^completion)(NSDic
             if (finished) { if (cancel && uuid) [weakExtension cancelExtensionRequestWithIdentifier:uuid]; return; }
             if (!uuid) [request finish:PNFailure(@"start", nil, @"中转扩展启动失败") cancel:NO];
         }];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (frontBoard ? 20 : 15) * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
             [weakRequest finish:PNFailure(@"timeout", nil, @"中转请求超时") cancel:YES];
         });
     } @catch (NSException *exception) {
         [request finish:PNFailure(@"exception", nil, exception.reason ?: exception.name) cancel:YES];
     }
+}
+
+void PNDispatchThroughShare(NSURL *url, BOOL sensitive, void (^completion)(NSDictionary *)) {
+    PNDispatchShare(url, sensitive, NO, completion);
+}
+
+void PNDispatchFrontBoardThroughShare(NSURL *url, void (^completion)(NSDictionary *)) {
+    PNDispatchShare(url, NO, YES, completion);
 }

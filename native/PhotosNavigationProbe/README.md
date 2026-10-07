@@ -1,4 +1,4 @@
-# 照片跳转诊断 0.1.1
+# 照片跳转诊断 0.1.2
 
 独立 iPhone App，Bundle ID `com.kevin3627713.photosnavigationprobe`，内置中转扩展 `.share`，最低 iOS 18.0。工程和编译流程独立于借拍 Runner；不会将诊断界面或代码加入借拍 IPA。源代码保存在 `research/photos-album-navigation-probe-ios18` 分支。
 
@@ -8,9 +8,10 @@
 
 1. 自签并安装 `photos-navigation-probe-unsigned.ipa`，保留 `PhotosNavigationShare.appex`。签名工具可以改写标识，中转从实际扩展 Info.plist 读取标识。
 2. 允许完整照片访问，选择一个容易辨认的普通相册，再选择其中一张照片。推荐相册有少量照片，以便确认相邻照片与返回范围。
-3. 先执行 A / 方式 4，确认独立 App 的中转能定位照片。返回诊断 App 后，在最新记录中填写实际页面。
-4. 执行 C / 方式 5，再执行 D / 方式 5；核对返回位置与相邻照片是否属于所选相册。若失败，可用同一 C/D 链接切换方式 1–4 对照。
-5. 复制完整诊断报告。报告包含真实本机标识、UUID、完整云标识、实际设备的解析器字段、派发方法与错误、手动填写的页面结果。也可复制单个或全部预设链接，继续在快捷指令中测试。
+3. 在“数据管理”点“清空测试记录”；关闭“使用自定义 URL”，选择预设 C。机主已验证此链接在系统快捷指令中可以在目标相册内打开大图。
+4. 选择“6 · 主应用：直接系统启动”，点“执行跳转测试”。若打开照片，核对返回页面和相邻照片是否属于目标相册；回到诊断 App，在这条记录的“实际页面”填写结果。
+5. 保持同一 C 和目标，切换“7 · 中转扩展：直接系统启动”，重复一次并填写结果。无需重测方式 1–5、无需枚举其他 URL。
+6. 点“复制完整诊断报告”并提供这两条结果。主应用成功不等于后台扩展可用，因此两种环境分别记录。
 
 11 个预设覆盖外部照片 / 相册云标识、内部照片 / 相册组合 UUID、完整本机标识、云标识和相册名称。H/I 用于确认 18.7.8 是否仍忽略 18.2 解析器不读取的额外参数，界面明确标为版本对照。自定义 URL 可在同一安装包中编辑参数；限制为 Photos 相关 scheme。
 
@@ -22,9 +23,9 @@
 
 机主第三轮完成 C/D × 方式 1–4 的八次测试，全部无反应。核对两份真实报告后，C/D × 五种派发方式合计十次：每次解析器均识别正确的照片与相册 UUID；C 的 revealMode=1，D 的 revealMode=2。UIApplication.open 两次均 accepted=false（此回调不提供 NSError）；主应用私有普通 / 敏感、中转私有普通 / 敏感的八次均 accepted=false、LSApplicationWorkspaceErrorDomain / 115。中转报告的宿主 hook 正常，主应用派发报告的 bundle 属于主应用，未把中转结果代替主应用结果。归纳数据见 [真机结果](../../docs/verification/photos-album-navigation-ios18.7.8.json)。
 
-研究结论：在机主的未越狱 iOS 18.7.8、自签名安装环境下，当前测试的 URL 路线无法在指定相册中自动定位原照片。外部 asset / album 分别可打开原照片大图 / 所选相册，但 H/I 的附加上下文被忽略；内部 C/D 能构造正确目标，但五种调用方式均被系统拒绝。这是对已测 URL 与调用条件的结论，不是对所有未来或未发现机制的证明。错误 115 仍不足以唯一确定具体拒绝原因。
+前三轮结论：原有五种派发方式无法在指定相册内定位照片。外部 asset / album 分别可打开原照片大图 / 所选相册，但 H/I 的附加上下文被忽略；内部 C/D 能构造正确目标，但五种方式均被系统拒绝。错误 115 仍不足以唯一确定具体拒绝原因。下文记录新的快捷指令成功结果；历史十次失败数据不变。
 
-目前暂停该 URL 路线，无新机制证据时不继续重复枚举同一内部 scheme 的标识写法或编译 IPA。E/F/G 仍使用同一内部 scheme，当前没有证据表明换成本机 / 云标识能绕过启动派发拒绝。保留诊断源码、预设和 0.1.1 安装包。借拍现有单照片大图跳转沿用；独立的“打开来源相册”能力已通过 B 真机验证，但尚未作为点击选项接入借拍，也未实现自动定位当前照片。
+不继续重复枚举同一内部 scheme 的标识写法。E/F/G 没有证据表明可通过改用本机 / 云标识修复启动派发。根据第四轮成功，0.1.2 改测不同的 INCAppLaunchRequest / FrontBoard 启动路径。借拍现有单照片大图跳转沿用；来源相册上下文尚未接入生产小组件。
 
 敏感 URL 的权限检查可参考另一位开发者的 [SwiftUI 实测](https://kyleye.top/posts/explore-swiftui-link/)：设置隐私 URL 的模拟器示例需要系统 opensensitiveurl entitlement。该例不能替代本机 Photos 的失败原因诊断。[Apple TN2415](https://developer.apple.com/library/archive/technotes/tn2415/_index.html) 说明 entitlement 受代码签名、描述文件及 OS 校验；不能用普通自签名随意声明系统权限来声称已经解决。
 
@@ -44,15 +45,17 @@
 1. [LSSpringBoardCall.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/Frameworks/CoreServices.framework/LSSpringBoardCall.m) 的 `callSpringBoardWithCompletionHandler` 回调（约 153–183 行）收到底层 NSError 后先记录系统日志，再改造成 LSApplicationWorkspaceErrorDomain / 115，仅提示查看日志。原始错误没有作为 NSUnderlyingError 保存。这为“115 不能唯一确定缺少哪个 entitlement”提供代码依据；单纯扩充现有 LS 返回值的记录无法保证取回被替换的原始错误。
 2. 快捷指令的 URL 动作经 [WFOpenURLAction.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/ActionKit.framework/WFOpenURLAction.m)、ICManager / WFApplicationContext 请求打开链接。[WFApplicationContext.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/ContentKit.framework/WFApplicationContext.m) 在 UI 宿主不处理请求时创建 WFAppLaunchRequest；其父类 [INCAppLaunchRequest.m](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/IntentsCore.framework/INCAppLaunchRequest.m) 的 `performWithService:retainsSiri:completionHandler:` 直接通过 FrontBoard `openApplication:withOptions:completion:` 携带目标 bundle 和 URL，并将原始 NSError 交给回调。它与现有五种 LS / UIApplication 路由不同，值得验证；调用方的系统权限仍会影响结果，不能声称普通 App 仿调用就能获得 Shortcuts 的权限。
 
-后续优先做无需新 IPA 的一次对照：在诊断 App 选择有效相册与照片，选择预设 C，点“复制当前 URL”；在系统快捷指令 App 中创建两步动作“URL（粘贴完整链接）→ 打开 URL”，直接在编辑器点运行。只记录是否打开目标大图、返回和相邻照片是否仍属于所选相册；失败时记录实际提示。该调用方及派发方式尚未纳入十次真机结果。[Apple iOS 18 URL 动作说明](https://support.apple.com/guide/shortcuts/apd68802640c/8.0/ios/18.0) 支持这种手动 URL 动作测试，但没有承诺内部 photos scheme 可用。
+第四轮：2026-10-08，机主明确确认把诊断 App 的 C 链接放入系统快捷指令，使用“URL → 打开 URL”从编辑器运行后，目标照片成功打开，返回页面及相邻照片均属于选定相册。系统为未越狱 iOS 18.7.8。这是具体调用方与运行方式的成功证据，未验证普通第三方 App / 扩展能获得相同结果，也未证明实际经过哪条 Shortcuts 内部回退分支。[Apple iOS 18 URL 动作说明](https://support.apple.com/guide/shortcuts/apd68802640c/8.0/ios/18.0) 支持这种手动测试，但没有承诺内部 photos scheme 可用。
 
-若后续需要新的诊断包，应增加一项直接 FrontBoard / INCAppLaunchRequest 派发，保持有效的当前调用方身份，限定目标为真实系统 Photos，记录原始 NSError 链和调用方前台状态。用途首先是取得拒绝原因，并验证不同派发路径；不是已完成的绕过。此路线尚未编译或真机测试，借拍的生产点击行为尚未接入它。已有 C/D 十次失败记录保持不变。
+0.1.2 / build 3 增加方式 6 / 7：加载 IntentsCore 和 FrontBoardServices，创建目标 bundle 固定为 `com.apple.mobileslideshow`、URL 为当前预设、无 userActivity、retainsSiri=false 的 INCAppLaunchRequest，通过 `performWithService:retainsSiri:completionHandler:` 使用默认 Shell 端点。该方法复用 Shortcuts 启动请求父类的实现，不调用外层的 CarPlay 检测。类、参数和返回类型均先核对。主应用记录派发时 active / inactive / background；中转记录扩展实际 bundle 与宿主 hook。保持真实调用身份，没有声明系统 entitlement 或退回旧 LS 方法。保留原始 NSError，包括 NSUnderlyingError / failureReason 与有界 userInfo。请求超时清理，晚到 / 重复回调只完成一次。真机调用能力待验证，借拍生产点击行为尚未接入它。
 
-`PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。五种方式分别为 UIApplication.open、主应用私有普通 / 敏感派发、中转扩展私有普通 / 敏感派发。私有入口不保证每个系统版本可用。
+如果两项均被拒绝，系统快捷指令可作为后续中转方案：[Apple 从 URL 运行快捷指令](https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/8.0/ios/18.0) 支持 `shortcuts://run-shortcut?name=…&input=text&text=…`。需将快捷指令改为接收输入，并验证外部启动与动态照片链接；目前只验证了编辑器内运行固定 C 链接，尚未验证小组件发起、中转界面或首次许可行为。
+
+`PNInspectURL` 尝试加载设备现有 PhotosUICore，并读取 `PXProgrammaticNavigationDestination.initWithURL:` 的目标字段。不可用时记录失败，仍允许派发；不调用会查询整个图库的 collection getter。方式 1–5 保留原有 UIApplication / LS 主应用与中转派发，6–7 使用直接系统启动。私有入口不保证每个系统版本可用。
 
 系统接受 URL 不等于定位成功。没有自动截取系统 Photos 页面；页面结果由机主观察记录。此工具不创建合成照片、不修改相册、不上传照片或日志；最近 30 次测试留在本机，用户按复制 / 分享按钮导出。
 
-PhotoKit 双向核对照片与相册云标识；云映射不可用时禁用需要它的预设，保留 UUID 路线。照片必须实际属于所选相册且可读取、非隐藏。网格按 120 张分页，不建立全图库 ID 数组。请求附随机 UUID，并忽略 NSExtensionItem.userInfo 的系统附加字段；宿主原回调执行后再读取输入，同一公共 context 去重，15 秒超时清理。
+PhotoKit 双向核对照片与相册云标识；云映射不可用时禁用需要它的预设，保留 UUID 路线。照片必须实际属于所选相册且可读取、非隐藏。网格按 120 张分页，不建立全图库 ID 数组。请求附随机 UUID，并忽略 NSExtensionItem.userInfo 的系统附加字段；宿主原回调执行后再读取输入，同一公共 context 去重。直接启动内部超时为 15 秒，其中转宿主给 20 秒以预留扩展启动时间；旧 LS 中转仍为 15 秒。
 
 编译：`bash scripts/build_photos_navigation_probe.sh`（macOS / Xcode / xcodeproj gem）。只进行 9 项标识与 URL 检查、iPhone 编译和包结构检查，不运行桌面小组件自动化。构建通过仍需机主用 iOS 18.7.8 真机验证。
 

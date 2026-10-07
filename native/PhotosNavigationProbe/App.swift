@@ -125,6 +125,18 @@ import UIKit
                     let text = Self.json(result)
                     Task { @MainActor in self.finish(id, text) }
                 }
+            case .frontBoard, .shareFrontBoard:
+                let callback: ([AnyHashable: Any]) -> Void = { result in
+                    let text = Self.json(result)
+                    Task { @MainActor in self.finish(id, text) }
+                }
+                if method == .shareFrontBoard {
+                    PNDispatchFrontBoardThroughShare(url, callback)
+                } else {
+                    let state = UIApplication.shared.applicationState
+                    let context = state == .active ? "application-active" : (state == .background ? "application-background" : "application-inactive")
+                    PNFrontBoardDispatch(url, context, callback)
+                }
             }
         }
     }
@@ -248,7 +260,7 @@ struct ProbeHome: View {
                             }
                             Button("只检查系统解析结果", action: model.inspectOnly).disabled(model.busy || model.currentURL == nil)
                             Button("执行跳转测试", action: model.run).disabled(model.busy || model.currentURL == nil)
-                            Text("A 检查基本照片跳转，B 检查指定相册，C/D 检查相册＋照片组合。解析检查也会保存记录；派发成功需核对实际页面。")
+                            Text("本轮选择 C，只测试方式 6、7；打开照片后核对返回页面和相邻照片是否属于目标相册。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }

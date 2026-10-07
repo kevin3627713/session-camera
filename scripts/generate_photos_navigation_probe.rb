@@ -19,15 +19,15 @@ make = lambda do |name, kind, suffix, files|
       'SWIFT_VERSION' => '5.0', 'SWIFT_STRICT_CONCURRENCY' => 'minimal',
       'CLANG_ENABLE_MODULES' => 'YES', 'CLANG_ENABLE_OBJC_ARC' => 'YES',
       'TARGETED_DEVICE_FAMILY' => '1', 'IPHONEOS_DEPLOYMENT_TARGET' => '18.0',
-      'CODE_SIGNING_ALLOWED' => 'NO', 'CURRENT_PROJECT_VERSION' => '2', 'MARKETING_VERSION' => '0.1.1',
+      'CODE_SIGNING_ALLOWED' => 'NO', 'CURRENT_PROJECT_VERSION' => '3', 'MARKETING_VERSION' => '0.1.2',
       'SWIFT_OBJC_BRIDGING_HEADER' => File.join(source, 'ProbeBridge.h')
     })
   end
   target
 end
 
-host = make.call('PhotosNavigationProbe', :application, '', ['App.swift', 'PhotoLibrary.swift', 'URLCandidates.swift', 'ProbeBridge.m'])
-share = make.call('PhotosNavigationShare', :app_extension, '.share', ['Share.m', 'ProbeBridge.m'])
+host = make.call('PhotosNavigationProbe', :application, '', ['App.swift', 'PhotoLibrary.swift', 'URLCandidates.swift', 'ProbeBridge.m', 'AppLaunch.m'])
+share = make.call('PhotosNavigationShare', :app_extension, '.share', ['Share.m', 'ProbeBridge.m', 'AppLaunch.m'])
 share.build_configurations.each { |config| config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES' }
 host.resources_build_phase.add_file_reference(group.new_file(File.join(source, 'Assets.xcassets')))
 host.build_configurations.each { |config| config.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon' }

@@ -4,32 +4,126 @@
   "iosVersion": "18.7.8",
   "jailbroken": false,
   "installation": "User self-signed standalone diagnostic app",
-  "diagnosticVersions": ["0.1.0 build 1", "0.1.1 build 2"],
+  "diagnosticVersions": [
+    "0.1.0 build 1",
+    "0.1.1 build 2"
+  ],
   "parser": "PXProgrammaticNavigationDestination",
   "internalURLShapes": {
     "C": "photos://asset?uuid=<assetUUID>&albumuuid=<albumUUID>",
     "D": "photos://album?uuid=<albumUUID>&revealassetuuid=<assetUUID>"
   },
   "internalDispatchResults": [
-    {"route": "standard", "candidates": ["C", "D"], "attempts": 2, "bothTargetsParsed": true, "accepted": false, "errorDomain": null, "errorCode": null},
-    {"route": "direct", "candidates": ["C", "D"], "attempts": 2, "bothTargetsParsed": true, "accepted": false, "errorDomain": "LSApplicationWorkspaceErrorDomain", "errorCode": 115},
-    {"route": "sensitive", "candidates": ["C", "D"], "attempts": 2, "bothTargetsParsed": true, "accepted": false, "errorDomain": "LSApplicationWorkspaceErrorDomain", "errorCode": 115},
-    {"route": "share", "candidates": ["C", "D"], "attempts": 2, "bothTargetsParsed": true, "accepted": false, "errorDomain": "LSApplicationWorkspaceErrorDomain", "errorCode": 115},
-    {"route": "share-sensitive", "candidates": ["C", "D"], "attempts": 2, "bothTargetsParsed": true, "accepted": false, "errorDomain": "LSApplicationWorkspaceErrorDomain", "errorCode": 115}
+    {
+      "route": "standard",
+      "candidates": [
+        "C",
+        "D"
+      ],
+      "attempts": 2,
+      "bothTargetsParsed": true,
+      "accepted": false,
+      "errorDomain": null,
+      "errorCode": null
+    },
+    {
+      "route": "direct",
+      "candidates": [
+        "C",
+        "D"
+      ],
+      "attempts": 2,
+      "bothTargetsParsed": true,
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    },
+    {
+      "route": "sensitive",
+      "candidates": [
+        "C",
+        "D"
+      ],
+      "attempts": 2,
+      "bothTargetsParsed": true,
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    },
+    {
+      "route": "share",
+      "candidates": [
+        "C",
+        "D"
+      ],
+      "attempts": 2,
+      "bothTargetsParsed": true,
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    },
+    {
+      "route": "share-sensitive",
+      "candidates": [
+        "C",
+        "D"
+      ],
+      "attempts": 2,
+      "bothTargetsParsed": true,
+      "accepted": false,
+      "errorDomain": "LSApplicationWorkspaceErrorDomain",
+      "errorCode": 115
+    }
   ],
-  "internalTargetModes": {"C": "content (1)", "D": "inContainer (2)"},
+  "internalTargetModes": {
+    "C": "content (1)",
+    "D": "inContainer (2)"
+  },
   "internalObservedResult": "No response in all ten attempts",
   "externalResults": [
-    {"candidate": "A", "route": "share", "accepted": true, "observation": "Target photo in all photos"},
-    {"candidate": "B", "route": "share", "accepted": true, "observation": "Selected album opened"},
-    {"candidate": "H", "route": "inspect-only", "assetCloudIdentifierParsed": true, "albumTargetParsed": false, "dispatched": false},
-    {"candidate": "I", "route": "inspect-only", "albumCloudIdentifierParsed": true, "assetTargetParsed": false, "dispatched": false}
+    {
+      "candidate": "A",
+      "route": "share",
+      "accepted": true,
+      "observation": "Target photo in all photos"
+    },
+    {
+      "candidate": "B",
+      "route": "share",
+      "accepted": true,
+      "observation": "Selected album opened"
+    },
+    {
+      "candidate": "H",
+      "route": "inspect-only",
+      "assetCloudIdentifierParsed": true,
+      "albumTargetParsed": false,
+      "dispatched": false
+    },
+    {
+      "candidate": "I",
+      "route": "inspect-only",
+      "albumCloudIdentifierParsed": true,
+      "assetTargetParsed": false,
+      "dispatched": false
+    }
   ],
-  "conclusion": "Tested URL routes cannot locate the original photo within a specified album in this installation; research paused",
+  "conclusion": "Original five dispatch routes failed; the same C URL succeeds from the system Shortcuts editor and retains the selected album. Third-party direct INCAppLaunchRequest / FrontBoard dispatch and widget integration remain unverified.",
   "limitations": [
     "Error 115 does not establish the unique underlying denial reason",
     "Results do not exhaust undiscovered mechanisms or different signing environments",
     "Photos UI observations are from the device owner, not automated screenshot inspection",
     "Raw asset identifiers, album identifiers, album names and signing identifiers are omitted"
-  ]
+  ],
+  "shortcutsResult": {
+    "date": "2026-10-08",
+    "candidate": "C",
+    "caller": "System Shortcuts app",
+    "execution": "Run from shortcut editor with URL followed by Open URL actions",
+    "evidence": "Explicit confirmation by device owner",
+    "targetPhotoOpened": true,
+    "returnAndAdjacentPhotosRemainInSelectedAlbum": true,
+    "thirdPartyDirectLaunchTested": false,
+    "widgetInitiatedShortcutTested": false
+  }
 }

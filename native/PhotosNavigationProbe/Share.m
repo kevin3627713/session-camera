@@ -25,19 +25,27 @@ static void PNHandleContext(id context) {
         }
         if (![input[@"probeURL"] isKindOfClass:NSString.class] ||
             ![input[@"probeSensitive"] isKindOfClass:NSNumber.class] ||
+            ![@[@"workspace", @"frontboard"] containsObject:input[@"probeEngine"]] ||
             ![[NSUUID alloc] initWithUUIDString:input[@"probeNonce"]]) {
             [(NSExtensionContext *)owner cancelRequestWithError:[NSError errorWithDomain:@"PhotosNavigationProbe" code:2
                 userInfo:@{NSLocalizedDescriptionKey: @"诊断中转请求无效"}]];
             return;
         }
         NSURL *url = [NSURL URLWithString:input[@"probeURL"]];
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            NSMutableDictionary *result = [PNWorkspaceDispatch(url, [input[@"probeSensitive"] boolValue]) mutableCopy];
+        void (^replyWithResult)(NSDictionary *) = ^(NSDictionary *value) {
+            NSMutableDictionary *result = [value mutableCopy];
             result[@"hostHookInstalled"] = @(PNHookInstalled);
             NSExtensionItem *reply = [NSExtensionItem new];
             reply.userInfo = @{@"probeNonce": input[@"probeNonce"], @"probeResult": result};
             [(NSExtensionContext *)owner completeRequestReturningItems:@[reply] completionHandler:nil];
-        });
+        };
+        if ([input[@"probeEngine"] isEqual:@"frontboard"]) {
+            PNFrontBoardDispatch(url, @"share-extension", replyWithResult);
+        } else {
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                replyWithResult(PNWorkspaceDispatch(url, [input[@"probeSensitive"] boolValue]));
+            });
+        }
     } @catch (NSException *exception) {
         if ([context respondsToSelector:@selector(cancelRequestWithError:)])
             [(NSExtensionContext *)context cancelRequestWithError:[NSError errorWithDomain:@"PhotosNavigationProbe" code:3
