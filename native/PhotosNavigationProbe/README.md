@@ -59,4 +59,6 @@ PhotoKit 双向核对照片与相册云标识；云映射不可用时禁用需�
 
 编译：`bash scripts/build_photos_navigation_probe.sh`（macOS / Xcode / xcodeproj gem）。只进行 9 项标识与 URL 检查、iPhone 编译和包结构检查，不运行桌面小组件自动化。构建通过仍需机主用 iOS 18.7.8 真机验证。
 
+0.1.2 / build 3 的[构建 37656298590](https://github.com/kevin3627713/session-camera/actions/runs/37656298590) 已通过，源码提交 `50a96e8752efcebf9e195b15752489cec709191c`。9 项检查通过；主应用与中转扩展版本一致且二进制均包含 INCAppLaunchRequest / 直接派发选择器。下载后的 IPA 与 CI 哈希核对一致：226,834 字节，SHA-256 `8b9232a17a38b3ced30807e65ddf9a315d5bc0bb8e4d66c2e98625230189665f`。安装包见 [0.1.2 发行版](https://github.com/kevin3627713/session-camera/releases/tag/photos-navigation-probe-v0.1.2)。新直接派发方式仍待真机测试。
+
 解析格式依据：[iOS 18.2 PXProgrammaticNavigationDestination](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/PhotosUICore.framework/PXProgrammaticNavigationDestination.m)。标识映射依据：[Apple cloudIdentifierMappings](https://developer.apple.com/documentation/photos/phphotolibrary/cloudidentifiermappings(forlocalidentifiers:))。
