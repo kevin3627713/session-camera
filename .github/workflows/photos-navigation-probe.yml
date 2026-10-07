@@ -1,0 +1,30 @@
+name: Build standalone Photos navigation diagnostic
+on:
+  push:
+    branches: ['research/photos-album-navigation-probe-ios18']
+    paths:
+      - 'native/PhotosNavigationProbe/**'
+      - 'scripts/*photos_navigation_probe*'
+      - '.github/workflows/photos-navigation-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: photos-navigation-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Xcode project generator
+        run: gem install xcodeproj --user-install --no-document
+      - name: Compile and package standalone iPhone diagnostic
+        run: bash scripts/build_photos_navigation_probe.sh
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: photos-navigation-probe-${{ github.run_number }}
+          path: artifacts/photos-navigation-probe/
+          if-no-files-found: error

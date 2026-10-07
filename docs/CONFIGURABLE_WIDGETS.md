@@ -36,6 +36,28 @@
 
 重签时必须保留并签署 SessionWidgets.appex 与 SessionPhotoBridge.appex，沿用原 App 身份覆盖安装即可；已有 photos 点击设置沿用新行为，不需删掉小组件。中转扩展使用 FALSEPREDICATE，避免成为普通分享菜单入口。相机继续支持旧 sessioncamera://photos 链接，但新的组件按钮不产生该链接。引导式访问期间跨应用跳转仍由系统决定。默认点击仍是不打开应用。
 
+## 在指定相册中打开照片：研究与真机反馈（2026-10-07）
+
+目标是从照片小组件打开同一原照片，并让系统 Photos 的返回位置和相邻照片仍属于小组件所选相册。当前生产链接只传照片的完整云端标识，没有传入相册上下文；直接定位照片已通过机主验收，指定相册上下文尚未实现。
+
+机主在未越狱 iOS 18.7.8 上用快捷指令测试了以下无需真实资产标识的入口：
+
+| 测试 | URL / 操作 | 机主反馈 |
+| --- | --- | --- |
+| A | `photos-navigation://album?name=favorites` | 进入相册总列表，没有进入具体照片 |
+| B | `photos://album?name=favorites` | 无反应 |
+| C | `photos://album?name=camera-roll` | 无反应 |
+| D | `photos://contentmode?id=albums` | 无反应 |
+| 保留已有相册位置 | 手动进入包含组件当前照片的具体相册缩略图页面，返回主屏且不强制关闭 Photos，再点击现有组件 | 仍然进入所有照片 |
+
+这些是真机界面反馈，没有取得 B/C/D 的系统派发错误日志，不能仅据“无反应”断言唯一失败原因。最后一项说明现有生产照片链接在该设备上不会沿用已打开的相册位置；没有证据支持仅先打开相册、随后派发当前照片链接就能保留浏览范围。
+
+对固定提交的 [iOS 18.2 导航解析器](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/PhotosUICore.framework/PXProgrammaticNavigationDestination.m) 的静态分析发现：外部 `photos-navigation://asset` 只把 `cloud-identifier` 写入照片标识；`photos-navigation://album` 只把它写入相册标识。两个分支均没有读取照片与相册的组合参数。公共辅助解析函数也只读取这一项，见 [PXProgrammaticNavigationCloudIdentifierForURLQueryValues](https://github.com/EthanArbuckle/iPhone17-1_18.2_22C152_Restore/blob/e26ed4563f78871c59d2d96856756a65d62517e5/System/Library/PrivateFrameworks/PhotosUICore.framework/PhotosUICore_17.m)。A 的表现与该实现不读取 `name` 一致。
+
+内部 `photos://asset` 分支读取照片 `uuid` 和相册 `albumuuid`，内部 `photos://album` 分支读取相册 `uuid` 和照片 `revealassetuuid`。这说明系统内部支持同时携带两个目标，但不证明第三方调用可用，也不能把参数直接换到 `photos-navigation` 上宣称支持。这里的内部参数是 UUID，不能拿完整 PhotoKit 本机标识或云端标识直接替代。
+
+当前没有找到经该真机验证、可从外部同时指定相册和照片的 URL；也没有读取目标设备上的真实相册 / 照片标识。下一步若检验真实相册云标识或内部组合入口，需要一次诊断入口导出真实标识，并在中转扩展的实际派发环境观察结果。现有生产 Share 中转限制为已核对的单照片 `photos-navigation://asset` URL，不能直接接受任意测试链接。静态资料来自 18.2，不能将其视为对 18.7.8 所有私有机制的完整排除。本次只更新研究记录，没有修改生产跳转或生成 IPA。
+
 ## 不显示借拍界面的 URL 派发研究（2026-10-06）
 
 实验保存在 `research/widget-direct-photos-url-ios18` 分支，基于 0.3.4 的开发分支创建。`native/WidgetURLProbe` 是独立测试宿主；Ruby 脚本在 build 目录生成自己的 Xcode 工程，实际运行桌面 WidgetKit 的 Button / AppIntent。它没有加入借拍的生产工程或 IPA，主应用、生产小组件、版本号和既有发行包均未改变。
