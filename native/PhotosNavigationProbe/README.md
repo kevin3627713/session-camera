@@ -8,6 +8,8 @@
 
 系统快捷指令编辑器内的 C 链接已由机主确认成功，保留指定相册。随后，外部 `shortcuts://run-shortcut` 动态 text 输入也成功：机主观察到快捷指令界面约 0.5 秒加载，然后在目标相册内打开照片。这是机主的时间估计。机主随后确认系统快捷指令小组件能够直接进入照片，或仅显示进度提示，没有完整快捷指令界面；借拍小组件仍未接入。0.1.3 增加方式 8 / 9，验证普通自签主应用与自有后台中转能否调用同一父类执行器；操作见[发行说明](RELEASE_NOTES.md)，机制与权限边界见[后台执行调查](../../docs/SHORTCUTS_BACKGROUND_EXECUTION.md)。真实目标标识仅用于机主本机的测试链接；仓库报告保留归纳结果。
 
+0.1.3 / build 4 的 [构建 37664186145](https://github.com/kevin3627713/session-camera/actions/runs/37664186145) 已通过，源码 `d694be0ed5fb9d4fd257d556db1be4528d48bcfa`。9 项 URL 检查、主应用与扩展编译和 IPA 结构检查完成。IPA 为 247,035 字节，SHA-256 `ab7cc0978e7e5e0450e9b8c1ca14faf85b9ca02aa79e27352e77decb35ad3d5e`；下载后的文件与 CI 哈希一致。[下载 IPA](https://github.com/kevin3627713/session-camera/releases/download/photos-navigation-probe-v0.1.3/photos-navigation-probe-unsigned.ipa)。方式 8 / 9 仍待机主真机测试。
+
 ## 外部快捷指令中转测试（无需新 IPA）
 
 1. 在系统快捷指令 App 中复制之前成功的快捷指令，将副本准确命名为“借拍相册跳转”。

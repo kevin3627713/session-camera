@@ -15,6 +15,12 @@
 
 保留清空记录、重置数据、11 个链接预设、解析检查与本机报告。此包是独立诊断 App，不包含借拍相机或照片小组件；借拍生产点击行为尚未更改。报告留在本机，按复制 / 分享按钮导出。
 
+## 安装包
+
+[0.1.3 / build 4 IPA](https://github.com/kevin3627713/session-camera/releases/download/photos-navigation-probe-v0.1.3/photos-navigation-probe-unsigned.ipa) 已通过 [GitHub Actions 37664186145](https://github.com/kevin3627713/session-camera/actions/runs/37664186145) 的 9 项 URL 检查、iPhone 编译及包结构检查。两个可执行文件均包含新执行器请求入口；下载后的版本、内容和哈希已与 CI 报告核对。编译与包检查通过不代表第三方权限或真机界面已经验收。
+
+构建源码：`d694be0ed5fb9d4fd257d556db1be4528d48bcfa`。IPA 为 247,035 字节，SHA-256：`ab7cc0978e7e5e0450e9b8c1ca14faf85b9ca02aa79e27352e77decb35ad3d5e`。
+
 ## 历史结果
 
 0.1.2 / build 3 的 INCAppLaunchRequest / FrontBoard 方式 6 / 7 已由真机明确拒绝：底层 Security / Request is not trusted。0.1.3 保留旧代码用于研究，不再要求重复这两项。相关结果和新执行器的证据边界见[后台执行调查](../../docs/SHORTCUTS_BACKGROUND_EXECUTION.md)。

@@ -66,6 +66,8 @@
 
 2026-10-08 社区复查发现：iOS 18.2 的 LaunchServices 会把底层 FrontBoard 启动错误包装成 115；快捷指令的 WFAppLaunchRequest / INCAppLaunchRequest 存在不同的直接启动路径。复查后 C 的快捷指令测试已由机主确认成功；第三方直接调用随后已被系统信任检查拒绝；这两次为新增的 C 测试，不改变原有十次失败。源码依据和当前证据边界见[复查记录](../native/PhotosNavigationProbe/README.md#2026-10-08-社区与启动机制复查)。
 
+同日，机主确认系统快捷指令小组件运行固定 C 链接时能够直接进入照片，或只显示进度提示，没有完整快捷指令 App 页面。独立诊断 0.1.3 / build 4 增加方式 8 / 9：在真实第三方主应用与自有中转扩展中使用 WFWorkflowRunnerClient 的 widget 请求路径、按名称查找工作流并提交动态文本输入。安装包编译及结构检查已通过，但普通自签调用能力仍待真机结果；该代码未加入借拍生产 IPA。步骤与下载见[0.1.3 发行说明](../native/PhotosNavigationProbe/RELEASE_NOTES.md)。
+
 ## 不显示借拍界面的 URL 派发研究（2026-10-06）
 
 实验保存在 `research/widget-direct-photos-url-ios18` 分支，基于 0.3.4 的开发分支创建。`native/WidgetURLProbe` 是独立测试宿主；Ruby 脚本在 build 目录生成自己的 Xcode 工程，实际运行桌面 WidgetKit 的 Button / AppIntent。它没有加入借拍的生产工程或 IPA，主应用、生产小组件、版本号和既有发行包均未改变。

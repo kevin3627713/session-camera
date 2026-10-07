@@ -129,6 +129,16 @@
     "thirdPartyDirectLaunchSucceeded": false
   },
   "lastUpdated": "2026-10-08",
+  "pendingRunnerDiagnostic": {
+    "version": "0.1.3 build 4",
+    "sourceCommit": "d694be0ed5fb9d4fd257d556db1be4528d48bcfa",
+    "ciRun": 37664186145,
+    "buildConclusion": "success",
+    "ipaSize": 247035,
+    "ipaSHA256": "ab7cc0978e7e5e0450e9b8c1ca14faf85b9ca02aa79e27352e77decb35ad3d5e",
+    "routes": ["shortcut-runner", "share-shortcut-runner"],
+    "deviceTested": false
+  },
   "externalShortcutsRelayResult": {
     "date": "2026-10-08",
     "entryPoint": "shortcuts://run-shortcut?name=<encodedName>&input=text&text=<encodedCURL>",
