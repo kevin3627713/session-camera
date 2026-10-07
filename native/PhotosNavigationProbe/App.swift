@@ -91,10 +91,12 @@ import UIKit
     }
 
     func inspectOnly() {
-        guard let url = currentURL else { return }
+        guard !busy, let ids = identifiers, let url = currentURL else { return }
         busy = true
+        let id = beginRecord(ids, url: url, route: "inspect-only")
         Task {
             let parser = await Task.detached { Self.json(PNInspectURL(url)) }.value
+            update(id) { $0.parser = parser }
             message = parser; busy = false
         }
     }
@@ -102,12 +104,8 @@ import UIKit
     func run() {
         guard !busy, let ids = identifiers, let url = currentURL else { return }
         busy = true; message = "正在解析与派发…"
-        let id = UUID().uuidString, method = route
-        let record = ProbeRecord(id: id, started: ISO8601DateFormatter().string(from: Date()),
-                                 candidate: useCustom ? "自定义" : candidateID, route: method.rawValue,
-                                 url: url.absoluteString, identifiers: ids, parser: "等待解析", dispatch: "等待派发回调",
-                                 observation: "尚未填写")
-        records.insert(record, at: 0); records = Array(records.prefix(30)); save()
+        let method = route
+        let id = beginRecord(ids, url: url, route: method.rawValue)
         store.set(method.rawValue, forKey: "probeRoute")
         store.set(candidateID, forKey: "probeCandidate")
         store.set(customURL, forKey: "probeCustomURL")
@@ -129,6 +127,36 @@ import UIKit
                 }
             }
         }
+    }
+
+    private func beginRecord(_ ids: ProbeIdentifiers, url: URL, route: String) -> String {
+        let id = UUID().uuidString
+        let inspectOnly = route == "inspect-only"
+        let record = ProbeRecord(id: id, started: ISO8601DateFormatter().string(from: Date()),
+                                 candidate: useCustom ? "自定义" : candidateID, route: route,
+                                 url: url.absoluteString, identifiers: ids, parser: "等待解析",
+                                 dispatch: inspectOnly ? "未执行跳转（仅检查解析）" : "等待派发回调",
+                                 observation: inspectOnly ? "未执行（仅检查解析）" : "尚未填写")
+        records.insert(record, at: 0); records = Array(records.prefix(30)); save()
+        return id
+    }
+
+    func clearRecords() {
+        guard !busy else { return }
+        records = []
+        store.removeObject(forKey: "probeRecords")
+        message = "测试记录已清空，可以开始新一轮测试。"
+    }
+
+    func resetData() {
+        guard !busy else { return }
+        selectionNonce = UUID()
+        for key in ["probeRecords", "probeRoute", "probeCandidate", "probeCustomURL", "probeAlbumID", "probeAssetID"] {
+            store.removeObject(forKey: key)
+        }
+        records = []; album = nil; assetID = ""; identifiers = nil
+        candidateID = "A"; route = .share; customURL = ""; useCustom = false
+        message = "诊断数据已重置，请重新选择相册和照片。"
     }
 
     private func finish(_ id: String, _ result: String) {
@@ -157,7 +185,9 @@ import UIKit
     var report: String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let history = (try? encoder.encode(records)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-        return "照片跳转诊断 0.1.0\niOS \(UIDevice.current.systemVersion)\nBundle \(Bundle.main.bundleIdentifier ?? "")\n\n\(identifierText)\n\n测试记录：\n\(history)"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知"
+        return "照片跳转诊断 \(version)（build \(build)）\niOS \(UIDevice.current.systemVersion)\nBundle \(Bundle.main.bundleIdentifier ?? "")\n\n\(identifierText)\n\n测试记录：\n\(history)"
     }
 }
 
@@ -167,6 +197,8 @@ struct ProbeHome: View {
     @State private var showAlbums = false
     @State private var showPhotos = false
     @State private var copied = false
+    @State private var confirmClear = false
+    @State private var confirmReset = false
     var body: some View {
         NavigationStack {
             Form {
@@ -216,7 +248,7 @@ struct ProbeHome: View {
                             }
                             Button("只检查系统解析结果", action: model.inspectOnly).disabled(model.busy || model.currentURL == nil)
                             Button("执行跳转测试", action: model.run).disabled(model.busy || model.currentURL == nil)
-                            Text("建议先用 A＋方式 4 确认基础跳转，再测 C、D＋方式 5。每次返回后记录实际页面；系统接受派发不等于定位成功。")
+                            Text("A 检查基本照片跳转，B 检查指定相册，C/D 检查相册＋照片组合。解析检查也会保存记录；派发成功需核对实际页面。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -229,12 +261,26 @@ struct ProbeHome: View {
                     Text("最近 30 次测试保存在本机，报告包含所选照片和相册的标识。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                Section("数据管理") {
+                    Button("清空测试记录", role: .destructive) { confirmClear = true }
+                        .disabled(model.busy || model.records.isEmpty)
+                    Text("清空历史记录，保留当前相册、照片和链接设置。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("重置全部诊断数据", role: .destructive) { confirmReset = true }
+                        .disabled(model.busy)
+                    Text("清空历史记录、已选目标和链接设置，恢复默认配置。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 ForEach(model.records) { record in
-                    Section("\(record.candidate) · \(ProbeRoute(rawValue: record.route)?.title ?? record.route)") {
-                        Picker("实际页面", selection: Binding(get: {
-                            model.records.first { $0.id == record.id }?.observation ?? "尚未填写"
-                        }, set: { model.observe(record.id, $0) })) {
-                            ForEach(model.observationChoices, id: \.self) { Text($0).tag($0) }
+                    Section("\(record.candidate) · \(record.routeTitle)") {
+                        if record.route == "inspect-only" {
+                            Text("仅检查解析，未执行跳转").foregroundStyle(.secondary)
+                        } else {
+                            Picker("实际页面", selection: Binding(get: {
+                                model.records.first { $0.id == record.id }?.observation ?? "尚未填写"
+                            }, set: { model.observe(record.id, $0) })) {
+                                ForEach(model.observationChoices, id: \.self) { Text($0).tag($0) }
+                            }
                         }
                         DisclosureGroup("解析与派发详情") {
                             Text("\(record.started)\n\(record.url)\n\n解析：\n\(record.parser)\n\n派发：\n\(record.dispatch)")
@@ -249,6 +295,14 @@ struct ProbeHome: View {
             .sheet(isPresented: $showAlbums) { ProbeAlbumPicker(albums: model.albums) { model.select($0) } }
             .sheet(isPresented: $showPhotos) { if let album = model.album { ProbePhotoPicker(album: album) { model.selectAsset($0) } } }
             .alert("已复制", isPresented: $copied) { Button("好", role: .cancel) {} }
+            .confirmationDialog("清空全部测试记录？当前相册和照片会保留。", isPresented: $confirmClear, titleVisibility: .visible) {
+                Button("清空记录", role: .destructive, action: model.clearRecords)
+                Button("取消", role: .cancel) {}
+            }
+            .confirmationDialog("重置全部诊断数据？之后需要重新选择相册和照片。", isPresented: $confirmReset, titleVisibility: .visible) {
+                Button("重置诊断数据", role: .destructive, action: model.resetData)
+                Button("取消", role: .cancel) {}
+            }
         }
     }
     private func copy(_ text: String) { UIPasteboard.general.string = text; copied = true }

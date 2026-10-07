@@ -89,4 +89,7 @@ struct ProbeRecord: Codable, Identifiable {
     var parser: String
     var dispatch: String
     var observation: String
+    var routeTitle: String {
+        route == "inspect-only" ? "只检查系统解析结果" : (ProbeRoute(rawValue: route)?.title ?? route)
+    }
 }

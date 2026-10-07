@@ -31,8 +31,8 @@ with zipfile.ZipFile(path) as archive:
     share = plistlib.loads(archive.read(root + 'PlugIns/PhotosNavigationShare.appex/Info.plist'))
     assert info['CFBundleIdentifier'] == 'com.kevin3627713.photosnavigationprobe'
     assert share['CFBundleIdentifier'] == info['CFBundleIdentifier'] + '.share'
-    assert info['CFBundleShortVersionString'] == share['CFBundleShortVersionString'] == '0.1.0'
-    assert info['CFBundleVersion'] == share['CFBundleVersion'] == '1'
+    assert info['CFBundleShortVersionString'] == share['CFBundleShortVersionString'] == '0.1.1'
+    assert info['CFBundleVersion'] == share['CFBundleVersion'] == '2'
     assert not any('SessionWidgets' in name or name.endswith('.mobileprovision') for name in archive.namelist())
     assert archive.read(root + info['CFBundleExecutable'])[:4] == b'\xcf\xfa\xed\xfe'
     assert archive.read(root + 'PlugIns/PhotosNavigationShare.appex/' + share['CFBundleExecutable'])[:4] == b'\xcf\xfa\xed\xfe'
