@@ -19,7 +19,7 @@ enum PhotoLibrarySource {
     static var status: PHAuthorizationStatus { PHPhotoLibrary.authorizationStatus(for: .readWrite) }
     static let accessibleID = "accessible"
 
-    static func catalog() -> [PhotoSourceEntity] {
+    static func catalog(includeHidden: Bool = false) -> [PhotoSourceEntity] {
         guard status == .authorized || status == .limited else { return [] }
         let accessible = PhotoSourceEntity(id: accessibleID, name: status == .limited ? "已授权的照片（有限访问）" : "所有可访问照片")
         guard status == .authorized else { return [accessible] }
@@ -38,7 +38,7 @@ enum PhotoLibrarySource {
         }
         visit(PHCollection.fetchTopLevelUserCollections(with: nil), path: "")
         PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: .any, options: nil).enumerateObjects { album, _, _ in
-            guard album.assetCollectionSubtype != .smartAlbumAllHidden,
+            guard (includeHidden || album.assetCollectionSubtype != .smartAlbumAllHidden),
                   seen.insert(album.localIdentifier).inserted else { return }
             entities.append(PhotoSourceEntity(id: "album:" + album.localIdentifier, name: "系统相册 · " + (album.localizedTitle ?? "未命名")))
         }
@@ -57,11 +57,11 @@ enum PhotoLibrarySource {
         return PhotoSourceEntity(id: id, name: (pieces[0] == "folder" ? "文件夹 · " : "相册 · ") + (collection?.localizedTitle ?? "已删除的来源"))
     }
 
-    static func assetIDs(sourceID: String) -> [String] {
+    static func assetIDs(sourceID: String, includeHidden: Bool = false) -> [String] {
         guard status == .authorized || status == .limited else { return [] }
         let options = PHFetchOptions()
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
-        options.includeHiddenAssets = false
+        options.includeHiddenAssets = includeHidden
         if sourceID == accessibleID {
             return identifiers(PHAsset.fetchAssets(with: options))
         }
@@ -79,41 +79,45 @@ enum PhotoLibrarySource {
         for id in albums {
             autoreleasepool {
                 guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
-                      album.assetCollectionSubtype != .smartAlbumAllHidden else { return }
+                      (includeHidden || album.assetCollectionSubtype != .smartAlbumAllHidden) else { return }
                 result.formUnion(identifiers(PHAsset.fetchAssets(in: album, options: options)))
             }
         }
         return result.sorted()
     }
 
-    static func selection(sourceID: String, instanceID: String, minutes: Int, now: Date) -> String? {
+    static func selection(sourceID: String, instanceID: String, minutes: Int, now: Date,
+                          includeHidden: Bool = false) -> String? {
         guard let window = PhotoSchedule.window(instanceID: instanceID, sourceID: sourceID, minutes: minutes, now: now),
               status == .authorized || status == .limited else { return nil }
         guard sourceID.hasPrefix("folder:") else {
             // Preserve the existing album/limited-library shuffle behavior.
-            return PhotoSchedule.plan(assetIDs: assetIDs(sourceID: sourceID), instanceID: instanceID,
+            return PhotoSchedule.plan(assetIDs: assetIDs(sourceID: sourceID, includeHidden: includeHidden), instanceID: instanceID,
                                       sourceID: sourceID, minutes: minutes, now: now, count: 1).first?.assetID
         }
         guard status == .authorized else { return nil }
         let albums = autoreleasepool { folderAlbumIDs(String(sourceID.dropFirst("folder:".count))) }
         guard !albums.isEmpty else { return nil }
-        let key = PhotoFolderSelectionCache.key(instanceID: instanceID, sourceID: sourceID, minutes: minutes)
+        let key = PhotoFolderSelectionCache.key(instanceID: instanceID, sourceID: sourceID, minutes: minutes,
+                                               includeHidden: includeHidden)
         let previous = PhotoFolderSelectionCache.read(key: key)
         // Validate membership and access before reusing a small cached selection;
         // no asset-count queries are needed for a reload in the same period.
-        if let previous, previous.tick == window.tick, folderContains(previous.assetID, albums: Set(albums)) {
+        if let previous, previous.tick == window.tick,
+           folderContains(previous.assetID, albums: Set(albums), includeHidden: includeHidden) {
             return previous.assetID
         }
-        let counts = albums.map { id in autoreleasepool { albumAssets(id)?.count ?? 0 } }
+        let counts = albums.map { id in autoreleasepool { albumAssets(id, includeHidden: includeHidden)?.count ?? 0 } }
         let picked = PhotoFolderSampler.select(counts: counts, seed: window.seed, excluding: previous?.assetID) { bucket, offset in
             autoreleasepool {
-                guard let assets = albumAssets(albums[bucket]), offset < assets.count else { return nil }
+                guard let assets = albumAssets(albums[bucket], includeHidden: includeHidden), offset < assets.count else { return nil }
                 let asset = assets.object(at: offset)
-                guard !asset.isHidden, asset.mediaType == .image else { return nil }
+                guard (includeHidden || !asset.isHidden), asset.mediaType == .image else { return nil }
                 return asset.localIdentifier
             }
         }
-        guard let picked, status == .authorized, folderContains(picked, albums: Set(albums)) else { return nil }
+        guard let picked, status == .authorized,
+              folderContains(picked, albums: Set(albums), includeHidden: includeHidden) else { return nil }
         PhotoFolderSelectionCache.write(.init(tick: window.tick, assetID: picked), key: key)
         return picked
     }
@@ -130,20 +134,22 @@ enum PhotoLibrarySource {
         }
     }
 
-    private static func albumAssets(_ id: String) -> PHFetchResult<PHAsset>? {
+    private static func albumAssets(_ id: String, includeHidden: Bool) -> PHFetchResult<PHAsset>? {
         guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
-              album.assetCollectionSubtype != .smartAlbumAllHidden else { return nil }
+              (includeHidden || album.assetCollectionSubtype != .smartAlbumAllHidden) else { return nil }
         let options = PHFetchOptions()
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
-        options.includeHiddenAssets = false
+        options.includeHiddenAssets = includeHidden
         return PHAsset.fetchAssets(in: album, options: options)
     }
 
-    private static func folderContains(_ id: String, albums: Set<String>) -> Bool {
+    private static func folderContains(_ id: String, albums: Set<String>, includeHidden: Bool) -> Bool {
         autoreleasepool {
+            let options = PHFetchOptions()
+            options.includeHiddenAssets = includeHidden
             guard status == .authorized,
-                  let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject,
-                  !asset.isHidden, asset.mediaType == .image else { return false }
+                  let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: options).firstObject,
+                  (includeHidden || !asset.isHidden), asset.mediaType == .image else { return false }
             var contains = false
             PHAssetCollection.fetchAssetCollectionsContaining(asset, with: .album, options: nil).enumerateObjects { album, _, stop in
                 if albums.contains(album.localIdentifier) { contains = true; stop.pointee = true }
@@ -170,15 +176,18 @@ enum PhotoLibrarySource {
         return result
     }
 
-    static func imageData(assetID: String, size: CGSize, timeout: TimeInterval = 8) async -> Data? {
+    static func imageData(assetID: String, size: CGSize, timeout: TimeInterval = 8,
+                          includeHidden: Bool = false) async -> Data? {
 #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("image-access-check")
 #endif
         // Recheck access and the asset before consulting the extension's cache.
         // Cached bytes must never bypass a removed asset or revoked permission.
+        let accessOptions = PHFetchOptions()
+        accessOptions.includeHiddenAssets = includeHidden
         guard status == .authorized || status == .limited,
-              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject,
-              !asset.isHidden else { return nil }
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: accessOptions).firstObject,
+              (includeHidden || !asset.isHidden), asset.mediaType == .image else { return nil }
         let target = pixelSize(for: size)
         // The system Photos widget calls this exact selector. Reuse its existing
         // signals without loading pixels or running another analysis model.
@@ -238,8 +247,9 @@ enum PhotoFolderSelectionCache {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("WidgetFolderSelection-v1", isDirectory: true)
     }
-    static func key(instanceID: String, sourceID: String, minutes: Int) -> String {
-        let value = "\(instanceID)\u{0}\(sourceID)\u{0}\(minutes)"
+    static func key(instanceID: String, sourceID: String, minutes: Int, includeHidden: Bool = false) -> String {
+        // Keep the old key for default-off widgets; opt-in selections are separate.
+        let value = "\(instanceID)\u{0}\(sourceID)\u{0}\(minutes)" + (includeHidden ? "\u{0}include-hidden" : "")
         return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
     static func read(key: String) -> Record? {

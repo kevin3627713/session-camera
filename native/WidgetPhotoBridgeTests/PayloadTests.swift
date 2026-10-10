@@ -8,7 +8,7 @@ import Foundation
         let item = NSExtensionItem()
         item.userInfo = expected
         let original = try PhotoBridgePayload(item.userInfo!)
-        precondition(original.assetID == "asset/L0/001" && original.nonce == nonce)
+        precondition(original.assetID == "asset/L0/001" && original.nonce == nonce && !original.includeHidden)
 
         // Use Foundation's actual property setter to enrich the same userInfo.
         item.attributedTitle = NSAttributedString(string: "System share title")
@@ -30,11 +30,30 @@ import Foundation
             do { _ = try PhotoBridgePayload(invalid); fatalError("Invalid \(key) was accepted") }
             catch { precondition((error as NSError).code == code) }
         }
-        let report: [String: Any] = ["success": true, "count": 6,
+        for flag in [false, true] {
+            let flagged = NSExtensionItem()
+            var fields = expected
+            fields[SCPhotoBridgeIncludeHiddenKey] = flag
+            flagged.userInfo = fields
+            let archived = try NSKeyedArchiver.archivedData(withRootObject: flagged, requiringSecureCoding: true)
+            let decoded = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSExtensionItem.self, NSDictionary.self,
+                NSArray.self, NSString.self, NSNumber.self], from: archived) as! NSExtensionItem
+            let decodedPayload = try PhotoBridgePayload(decoded.userInfo!)
+            precondition(decodedPayload.includeHidden == flag && decodedPayload.assetID == original.assetID)
+        }
+        for value in ["true" as Any, NSNumber(value: 1) as Any] {
+            var invalid = expected
+            invalid[SCPhotoBridgeIncludeHiddenKey] = value
+            do { _ = try PhotoBridgePayload(invalid); fatalError("Non-boolean hidden policy was accepted") }
+            catch { precondition((error as NSError).code == 16) }
+        }
+        let report: [String: Any] = ["success": true, "count": 10,
             "enrichedUserInfoKeyCount": enriched.count,
             "checks": ["Real NSExtensionItem basic payload", "System title enriches userInfo without invalidating payload",
                 "Secure coding retains required fields and extra metadata", "Missing asset rejected",
-                "Missing cloud identifier rejected", "Malformed request nonce rejected"]]
+                "Missing cloud identifier rejected", "Malformed request nonce rejected",
+                "Explicit hidden=false survives secure transport", "Explicit hidden=true survives secure transport",
+                "String hidden flag rejected", "Numeric hidden flag rejected"]]
         let json = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
         try json.write(to: URL(fileURLWithPath: "artifacts/photo-bridge-payload-tests.json"))
         print(String(decoding: json, as: UTF8.self))

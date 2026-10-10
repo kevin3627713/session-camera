@@ -27,12 +27,16 @@ struct PhotoSourceEntity: AppEntity {
 }
 
 struct PhotoSourceQuery: EntityStringQuery {
+    @IntentParameterDependency<CameraWidgetConfiguration>(\.$includeHidden) var configuration
     func entities(for identifiers: [String]) async throws -> [PhotoSourceEntity] {
         identifiers.map { PhotoLibrarySource.resolve($0) }
     }
-    func suggestedEntities() async throws -> [PhotoSourceEntity] { PhotoLibrarySource.catalog() }
+    func suggestedEntities() async throws -> [PhotoSourceEntity] {
+        PhotoLibrarySource.catalog(includeHidden: configuration?.includeHidden ?? false)
+    }
     func entities(matching string: String) async throws -> [PhotoSourceEntity] {
-        PhotoLibrarySource.catalog().filter { $0.name.localizedCaseInsensitiveContains(string) }
+        PhotoLibrarySource.catalog(includeHidden: configuration?.includeHidden ?? false)
+            .filter { $0.name.localizedCaseInsensitiveContains(string) }
     }
 }
 
@@ -66,6 +70,7 @@ struct CameraWidgetConfiguration: WidgetConfigurationIntent {
     @Parameter(title: "样式", default: .preset) var style: CameraWidgetStyle
     @Parameter(title: "点击行为", default: WidgetTapBehavior.none) var tapBehavior: WidgetTapBehavior
     @Parameter(title: "相册或文件夹") var source: PhotoSourceEntity?
+    @Parameter(title: "读取隐藏照片", default: false) var includeHidden: Bool
     @Parameter(title: "更换间隔（分钟，5～10080）", default: 60) var intervalMinutes: Int
     @Parameter(title: "独立编号") var identity: WidgetIdentityEntity?
     #if WIDGET_PHOTO_DIAGNOSTICS
@@ -76,6 +81,7 @@ struct CameraWidgetConfiguration: WidgetConfigurationIntent {
         When(\.$style, .equalTo, CameraWidgetStyle.photos) {
             Summary {
                 \.$style
+                \.$includeHidden
                 \.$source
                 \.$intervalMinutes
                 \.$identity

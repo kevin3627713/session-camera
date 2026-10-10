@@ -1,7 +1,8 @@
 import Foundation
 import Photos
 
-/// Resolves only the requested, currently accessible, non-hidden photo.
+/// Resolves only the requested, currently accessible photo under the caller's
+/// explicit hidden-photo policy. Existing camera routes keep the default off.
 enum SystemPhotosAsset {
     enum Failure: LocalizedError, Equatable {
         case access, missingAsset, identifierUnavailable, assetMismatch
@@ -24,8 +25,8 @@ enum SystemPhotosAsset {
         return components.url
     }
 
-    static func resolveURL(for identifier: String) throws -> URL {
-        try checkAccess(identifier)
+    static func resolveURL(for identifier: String, includeHidden: Bool = false) throws -> URL {
+        try checkAccess(identifier, includeHidden: includeHidden)
         let library = PHPhotoLibrary.shared()
         let url = try resolveURL(for: identifier, cloudMapping: { id in
             guard let result = library.cloudIdentifierMappings(forLocalIdentifiers: [id])[id] else {
@@ -38,7 +39,7 @@ enum SystemPhotosAsset {
             }
             return try result.get()
         })
-        try checkAccess(identifier)
+        try checkAccess(identifier, includeHidden: includeHidden)
         return url
     }
 
@@ -54,11 +55,13 @@ enum SystemPhotosAsset {
         catch { throw Failure.identifierUnavailable }
     }
 
-    static func checkAccess(_ identifier: String) throws {
+    static func checkAccess(_ identifier: String, includeHidden: Bool = false) throws {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard status == .authorized || status == .limited else { throw Failure.access }
+        let options = PHFetchOptions()
+        options.includeHiddenAssets = includeHidden
         guard !identifier.isEmpty,
-              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject,
-              !asset.isHidden else { throw Failure.missingAsset }
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: options).firstObject,
+              (includeHidden || !asset.isHidden), asset.mediaType == .image else { throw Failure.missingAsset }
     }
 }

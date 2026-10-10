@@ -10,6 +10,7 @@ struct CameraWidgetEntry: TimelineEntry {
     var message: String?
     var assetID: String?
     var instanceID: String?
+    var includeHidden: Bool = false
 }
 
 struct CameraWidgetProvider: AppIntentTimelineProvider {
@@ -31,8 +32,8 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         await makeTimeline(for: configuration, size: context.displaySize)
     }
     func makeTimeline(for configuration: CameraWidgetConfiguration, size: CGSize, now: Date = Date(),
-                      loadImage: (String, CGSize, TimeInterval) async -> Data? = {
-                          await PhotoLibrarySource.imageData(assetID: $0, size: $1, timeout: $2)
+                      loadImage: (String, CGSize, TimeInterval, Bool) async -> Data? = {
+                          await PhotoLibrarySource.imageData(assetID: $0, size: $1, timeout: $2, includeHidden: $3)
                       }) async -> Timeline<CameraWidgetEntry> {
         #if WIDGET_PHOTO_DIAGNOSTICS
         WidgetPhotoDiagnostics.record("provider-start")
@@ -65,22 +66,25 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         #endif
         #if WIDGET_PHOTO_DIAGNOSTICS
         if configuration.photoDiagnostic == .library {
-            let assets = PhotoLibrarySource.assetIDs(sourceID: source.id)
+            let assets = PhotoLibrarySource.assetIDs(sourceID: source.id, includeHidden: configuration.includeHidden)
             if let timeline = WidgetPhotoDiagnostics.libraryTimeline(configuration, now: now, count: assets.count) { return timeline }
         }
         #endif
         guard let window = PhotoSchedule.window(instanceID: identity.id, sourceID: source.id,
                                                minutes: configuration.intervalMinutes, now: now),
               let assetID = PhotoLibrarySource.selection(sourceID: source.id, instanceID: identity.id,
-                                                        minutes: configuration.intervalMinutes, now: now) else {
+                                                        minutes: configuration.intervalMinutes, now: now,
+                                                        includeHidden: configuration.includeHidden) else {
             let message = PhotoLibrarySource.status == .limited && source.id != PhotoLibrarySource.accessibleID
                 ? "读取相册/文件夹需要完整照片访问；有限权限可选已授权照片"
-                : "来源为空、已删除或没有可访问的照片"
+                : configuration.includeHidden
+                    ? "没有可读取的照片；隐藏相册锁定时系统可能拒绝读取"
+                    : "来源为空、已删除或没有可访问的照片"
             return Timeline(entries: [entry(message)], policy: .after(now.addingTimeInterval(900)))
         }
         // Calculate the next boundary but load only the current image. Six
         // preloaded entries also caused snapshot() to load six full images.
-        guard let imageData = await loadImage(assetID, size, 8) else {
+        guard let imageData = await loadImage(assetID, size, 8, configuration.includeHidden) else {
         #if WIDGET_PHOTO_DIAGNOSTICS
             WidgetPhotoDiagnostics.record("provider-image-unavailable")
         #endif
@@ -94,7 +98,8 @@ struct CameraWidgetProvider: AppIntentTimelineProvider {
         let message = WidgetPhotoOpenStatus.message(instanceID: identity.id, assetID: assetID, now: now)
         let refresh = message == nil ? window.nextDate : min(window.nextDate, now.addingTimeInterval(90))
         return Timeline(entries: [CameraWidgetEntry(date: now, style: .photos, tapBehavior: configuration.tapBehavior,
-            imageData: imageData, message: message, assetID: assetID, instanceID: identity.id)],
+            imageData: imageData, message: message, assetID: assetID, instanceID: identity.id,
+            includeHidden: configuration.includeHidden)],
             policy: .after(refresh))
     }
 }
@@ -120,7 +125,8 @@ struct CameraWidgetView: View {
                 Link(destination: URL(string: "sessioncamera://camera")!) { content }
             } else if entry.tapBehavior == .photos, entry.style == .photos,
                       let id = entry.assetID, entry.imageData != nil {
-                Button(intent: OpenWidgetPhoto(assetID: id, instanceID: entry.instanceID ?? id)) { content }
+                Button(intent: OpenWidgetPhoto(assetID: id, instanceID: entry.instanceID ?? id,
+                                              includeHidden: entry.includeHidden)) { content }
             } else {
                 // A full-size interactive control consumes the tap. Merely
                 // removing widgetURL would still open the containing app.

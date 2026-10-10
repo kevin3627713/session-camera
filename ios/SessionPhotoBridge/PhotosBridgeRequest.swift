@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// NSExtensionItem may add system properties to userInfo during transport.
 /// Validate our fields individually; the dictionary is not a three-key envelope.
@@ -6,6 +7,7 @@ struct PhotoBridgePayload {
     let assetID: String
     let cloudIdentifier: String
     let nonce: String
+    let includeHidden: Bool
 
     init(_ input: [AnyHashable: Any]) throws {
         guard let asset = input[SCPhotoBridgeAssetKey] as? String,
@@ -22,6 +24,15 @@ struct PhotoBridgePayload {
         self.assetID = asset
         self.cloudIdentifier = cloud
         self.nonce = nonce
+        if let value = input[SCPhotoBridgeIncludeHiddenKey] {
+            guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else {
+                throw Self.error(16, "照片中转的隐藏照片设置无效")
+            }
+            self.includeHidden = number.boolValue
+        } else {
+            // Requests from old timelines retain the original default-off policy.
+            self.includeHidden = false
+        }
     }
 
     private static func error(_ code: Int, _ message: String) -> NSError {
@@ -41,7 +52,7 @@ struct PhotoBridgePayload {
                 let payload = try PhotoBridgePayload(input)
                 // Re-check permission, hidden/deleted status and both mappings
                 // in this process immediately before dispatching.
-                let url = try SystemPhotosAsset.resolveURL(for: payload.assetID)
+                let url = try SystemPhotosAsset.resolveURL(for: payload.assetID, includeHidden: payload.includeHidden)
                 guard url == SystemPhotosAsset.assetURL(forCloudIdentifier: payload.cloudIdentifier) else {
                     throw SystemPhotosAsset.Failure.assetMismatch
                 }

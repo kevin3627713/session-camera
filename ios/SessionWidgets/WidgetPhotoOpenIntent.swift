@@ -7,20 +7,23 @@ struct OpenWidgetPhoto: AppIntent {
     static var openAppWhenRun = false
     @Parameter(title: "照片") var assetID: String
     @Parameter(title: "小组件编号") var instanceID: String
+    @Parameter(title: "读取隐藏照片", default: false) var includeHidden: Bool
     init() {}
-    init(assetID: String, instanceID: String) { self.assetID = assetID; self.instanceID = instanceID }
+    init(assetID: String, instanceID: String, includeHidden: Bool = false) {
+        self.assetID = assetID; self.instanceID = instanceID; self.includeHidden = includeHidden
+    }
 
     func perform() async throws -> some IntentResult {
         let attempt = WidgetPhotoOpenStatus.begin(instanceID: instanceID)
         do {
             let url = try await Task.detached(priority: .userInitiated) {
-                try SystemPhotosAsset.resolveURL(for: assetID)
+                try SystemPhotosAsset.resolveURL(for: assetID, includeHidden: includeHidden)
             }.value
             guard let cloudID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value else {
                 throw SystemPhotosAsset.Failure.identifierUnavailable
             }
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                SCOpenWidgetPhotoInPhotos(assetID, cloudID) { accepted, error in
+                SCOpenWidgetPhotoInPhotos(assetID, cloudID, includeHidden) { accepted, error in
                     if accepted { continuation.resume() }
                     else { continuation.resume(throwing: error ?? NSError(domain: "SessionPhotoBridge", code: 10,
                         userInfo: [NSLocalizedDescriptionKey: "无法在系统照片中打开，请重试"])) }

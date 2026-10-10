@@ -20,6 +20,7 @@ struct PhotoIntegrationApp: App {
         }
         var report: [String: Any]
         var systemCropProbe: [String: Any] = [:]
+        var hiddenPhotoProbe: [String: Any] = [:]
         let initialStatus = PhotoLibrarySource.status.rawValue
         do {
             // Request the access level explicitly even after simctl pre-grants it:
@@ -44,6 +45,7 @@ struct PhotoIntegrationApp: App {
             let red = image(.red, pixels: 1800), blue = image(.blue, pixels: 1800)
             let green = image(.green), yellow = image(.yellow)
             var redID = "", blueID = "", hiddenID = "", outsideID = "", albumID = "", folderID = ""
+            var hiddenAlbumID = "", hiddenFolderID = ""
             try await PHPhotoLibrary.shared().performChanges {
                 let a = PHAssetChangeRequest.creationRequestForAsset(from: red).placeholderForCreatedAsset!
                 let b = PHAssetChangeRequest.creationRequestForAsset(from: blue).placeholderForCreatedAsset!
@@ -65,12 +67,93 @@ struct PhotoIntegrationApp: App {
                 let root = PHCollectionListChangeRequest.creationRequestForCollectionList(withTitle: "Widget root fixture")
                 root.addChildCollections([albumAP, childP] as NSArray)
                 folderID = (root.placeholderForCreatedCollectionList as PHObjectPlaceholder?)!.localIdentifier
+                let hiddenAlbum = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: "Widget hidden fixture")
+                hiddenAlbum.addAssets([c] as NSArray)
+                let hiddenAlbumP = (hiddenAlbum.placeholderForCreatedAssetCollection as PHObjectPlaceholder?)!
+                hiddenAlbumID = hiddenAlbumP.localIdentifier
+                let hiddenFolder = PHCollectionListChangeRequest.creationRequestForCollectionList(withTitle: "Widget hidden folder")
+                hiddenFolder.addChildCollections([hiddenAlbumP] as NSArray)
+                hiddenFolderID = (hiddenFolder.placeholderForCreatedCollectionList as PHObjectPlaceholder?)!.localIdentifier
             }
             let album = PhotoLibrarySource.assetIDs(sourceID: "album:" + albumID)
             try require(album == [redID], "Album selects only its non-hidden photos")
             let folder = PhotoLibrarySource.assetIDs(sourceID: "folder:" + folderID)
             try require(Set(folder) == [redID, blueID], "Folder includes nested albums and deduplicates photos")
             try require(!folder.contains(hiddenID) && !folder.contains(outsideID), "Hidden and unrelated photos excluded")
+            try require(!CameraWidgetConfiguration().includeHidden, "Existing and new widgets exclude hidden photos by default")
+            let hiddenOptions = PHFetchOptions()
+            hiddenOptions.includeHiddenAssets = true
+            let exposedHidden = PHAsset.fetchAssets(withLocalIdentifiers: [hiddenID], options: hiddenOptions).firstObject
+            hiddenPhotoProbe["systemReturnsHiddenAsset"] = exposedHidden?.isHidden == true
+            hiddenPhotoProbe["scope"] = "Simulator fixture; locked hidden album on a real iPhone may remain inaccessible"
+            let hiddenSource = "album:" + hiddenAlbumID
+            let hiddenFolderSource = "folder:" + hiddenFolderID
+            try require(PhotoLibrarySource.assetIDs(sourceID: hiddenSource).isEmpty &&
+                        PhotoLibrarySource.assetIDs(sourceID: hiddenFolderSource).isEmpty,
+                        "Hidden-only albums and folders stay empty when the switch is off")
+            let hiddenCatalog = PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: .smartAlbumAllHidden, options: nil)
+            if let hiddenCollection = hiddenCatalog.firstObject {
+                let hiddenSmartSource = "album:" + hiddenCollection.localIdentifier
+                try require(!PhotoLibrarySource.catalog().contains { $0.id == hiddenSmartSource } &&
+                            PhotoLibrarySource.catalog(includeHidden: true).contains { $0.id == hiddenSmartSource },
+                            "Hidden smart album is offered only in the opted-in source catalog")
+            }
+            if exposedHidden?.isHidden == true {
+                try require(PhotoLibrarySource.assetIDs(sourceID: hiddenSource, includeHidden: true) == [hiddenID] &&
+                            PhotoLibrarySource.assetIDs(sourceID: hiddenFolderSource, includeHidden: true) == [hiddenID],
+                            "Opt-in album and nested folder queries return the real hidden asset")
+                try require(!PhotoLibrarySource.assetIDs(sourceID: hiddenSource, includeHidden: true).contains(outsideID),
+                            "Hidden opt-in preserves the selected album boundary")
+                let now = Date(), widgetID = UUID().uuidString
+                let selectedHidden = PhotoLibrarySource.selection(sourceID: hiddenFolderSource, instanceID: widgetID,
+                                                                  minutes: 60, now: now, includeHidden: true)
+                try require(selectedHidden == hiddenID, "Lazy folder sampler accepts a hidden asset only with opt-in")
+                let offKey = PhotoFolderSelectionCache.key(instanceID: widgetID, sourceID: hiddenFolderSource, minutes: 60)
+                let onKey = PhotoFolderSelectionCache.key(instanceID: widgetID, sourceID: hiddenFolderSource, minutes: 60, includeHidden: true)
+                try require(offKey != onKey, "Folder selection cache distinguishes hidden on and off for the same widget")
+                // A stale/misclassified record must also be rejected after opt-out.
+                let tick = PhotoSchedule.window(instanceID: widgetID, sourceID: hiddenFolderSource, minutes: 60, now: now)!.tick
+                PhotoFolderSelectionCache.write(.init(tick: tick, assetID: hiddenID), key: offKey)
+                try require(PhotoLibrarySource.selection(sourceID: hiddenFolderSource, instanceID: widgetID,
+                                                          minutes: 60, now: now) == nil,
+                            "Opt-out revalidates and rejects a cached hidden folder selection")
+                let hiddenData = await PhotoLibrarySource.imageData(assetID: hiddenID, size: CGSize(width: 160, height: 160),
+                                                                    includeHidden: true)
+                try require(hiddenData.flatMap(UIImage.init(data:)) != nil,
+                            "Real opted-in hidden photo request returns displayable data")
+                let hiddenOffData = await PhotoLibrarySource.imageData(assetID: hiddenID, size: CGSize(width: 160, height: 160))
+                try require(hiddenOffData == nil, "Opt-out rejects hidden JPEG cache bytes before loading")
+                try require((try? SystemPhotosAsset.checkAccess(hiddenID)) == nil &&
+                            (try? SystemPhotosAsset.checkAccess(hiddenID, includeHidden: true)) != nil,
+                            "Photos navigation checks preserve the explicit hidden policy")
+                var hiddenConfiguration = CameraWidgetConfiguration()
+                hiddenConfiguration.style = .photos
+                hiddenConfiguration.source = PhotoLibrarySource.resolve(hiddenSource)
+                hiddenConfiguration.identity = WidgetIdentityEntity(id: widgetID)
+                hiddenConfiguration.includeHidden = true
+                var receivedHidden = false
+                let hiddenTimeline = await CameraWidgetProvider(preset: .blank).makeTimeline(
+                    for: hiddenConfiguration, size: CGSize(width: 160, height: 160), now: now,
+                    loadImage: { id, _, _, allowHidden in
+                        receivedHidden = allowHidden && id == hiddenID
+                        return hiddenData
+                    })
+                try require(receivedHidden && hiddenTimeline.entries[0].includeHidden &&
+                            hiddenTimeline.entries[0].assetID == hiddenID,
+                            "Timeline propagates opt-in to image loading and the photo tap entry")
+                hiddenConfiguration.includeHidden = false
+                var offLoads = 0
+                let offTimeline = await CameraWidgetProvider(preset: .blank).makeTimeline(
+                    for: hiddenConfiguration, size: CGSize(width: 160, height: 160), now: now,
+                    loadImage: { _, _, _, _ in offLoads += 1; return hiddenData })
+                try require(offLoads == 0 && offTimeline.entries[0].assetID == nil && offTimeline.entries[0].imageData == nil,
+                            "Disabling hidden photos removes their image and tap destination from the timeline")
+                hiddenPhotoProbe["optInReadVerified"] = true
+            } else {
+                try require(PhotoLibrarySource.assetIDs(sourceID: hiddenSource, includeHidden: true).isEmpty,
+                            "A system-inaccessible hidden asset is not recovered by enabling the switch")
+                hiddenPhotoProbe["optInReadVerified"] = false
+            }
             let selectionTime = Date()
             let selectionIdentity = UUID().uuidString
             let selected = PhotoLibrarySource.selection(sourceID: "folder:" + folderID, instanceID: selectionIdentity,
@@ -226,14 +309,14 @@ struct PhotoIntegrationApp: App {
             let provider = CameraWidgetProvider(preset: .blank)
             let now = Date()
             let unavailable = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
-                                                          loadImage: { _, _, _ in nil })
+                                                          loadImage: { _, _, _, _ in nil })
             try require(unavailable.entries.count == 1 && unavailable.entries[0].message != nil,
                         "Failed current photo has a visible message rather than a blank photo entry")
             try require(unavailable.policy == .after(now.addingTimeInterval(300)),
                         "Failed current photo retries after five minutes instead of six periods")
             var loads = 0
             let partial = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160), now: now,
-                                                      loadImage: { _, _, _ in loads += 1; return loads == 1 ? data : nil })
+                                                      loadImage: { _, _, _, _ in loads += 1; return loads == 1 ? data : nil })
             try require(loads == 1 && partial.entries.count == 1 && partial.entries.allSatisfy { $0.imageData != nil },
                         "Timeline loads and returns only the current photo rather than preloading six images")
             let next = PhotoSchedule.plan(assetIDs: folder, instanceID: identity[0].id, sourceID: resolved[1].id,
@@ -250,12 +333,12 @@ struct PhotoIntegrationApp: App {
             configuration.photoDiagnostic = .library
             loads = 0
             let libraryCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
-                                                           loadImage: { _, _, _ in loads += 1; return data })
+                                                           loadImage: { _, _, _, _ in loads += 1; return data })
             try require(loads == 0 && libraryCheck.entries[0].imageData == nil && libraryCheck.entries[0].message?.contains("可用照片：2") == true,
                         "Library diagnostic reports scoped asset count without requesting a photo")
             configuration.photoDiagnostic = .request
             let requestCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
-                                                           loadImage: { _, _, _ in data })
+                                                           loadImage: { _, _, _, _ in data })
             try require(requestCheck.entries[0].imageData == nil && requestCheck.entries[0].message?.contains("480 × 480") == true,
                         "Request diagnostic returns dimensions as text without passing photo bytes to the view")
             configuration.photoDiagnostic = .off
@@ -274,7 +357,7 @@ struct PhotoIntegrationApp: App {
             configuration.photoDiagnostic = .rendering
             loads = 0
             let renderCheck = await provider.makeTimeline(for: configuration, size: CGSize(width: 160, height: 160),
-                                                          loadImage: { _, _, _ in loads += 1; return data })
+                                                          loadImage: { _, _, _, _ in loads += 1; return data })
             try require(loads == 0 && renderCheck.entries[0].imageData.flatMap(UIImage.init(data:))?.cgImage?.width == 64,
                         "Rendering diagnostic supplies a tiny synthetic image without a source, identity or PhotoKit request")
             try require(CameraWidgetConfiguration().photoDiagnostic == .off,
@@ -299,6 +382,7 @@ struct PhotoIntegrationApp: App {
                       "bundleID": Bundle.main.bundleIdentifier ?? "missing"]
         }
         report["systemCropProbe"] = systemCropProbe
+        report["hiddenPhotoProbe"] = hiddenPhotoProbe
         #if WIDGET_PHOTO_DIAGNOSTICS
         report["diagnosticsEnabled"] = true
         #else

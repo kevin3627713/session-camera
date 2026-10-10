@@ -59,7 +59,7 @@ static NSMutableSet *SCActiveRequests(void) {
 }
 @end
 
-void SCOpenWidgetPhotoInPhotos(NSString *assetID, NSString *cloudIdentifier, void (^completion)(BOOL, NSError *)) {
+void SCOpenWidgetPhotoInPhotos(NSString *assetID, NSString *cloudIdentifier, BOOL includeHidden, void (^completion)(BOOL, NSError *)) {
     SCPhotoBridgeClientRequest *request = [SCPhotoBridgeClientRequest new];
     request.completion = completion;
     request.nonce = NSUUID.UUID.UUIDString;
@@ -105,7 +105,7 @@ void SCOpenWidgetPhotoInPhotos(NSString *assetID, NSString *cloudIdentifier, voi
         }];
         NSExtensionItem *item = [NSExtensionItem new];
         item.userInfo = @{SCPhotoBridgeAssetKey: assetID, SCPhotoBridgeCloudKey: cloudIdentifier,
-                          SCPhotoBridgeNonceKey: request.nonce};
+                          SCPhotoBridgeNonceKey: request.nonce, SCPhotoBridgeIncludeHiddenKey: @(includeHidden)};
         [extension beginExtensionRequestWithInputItems:@[item] completion:^(NSUUID *uuid) {
             // Retain until the start callback arrives, including after a timeout.
             // A late UUID must be cancelled only if cancellation was requested.

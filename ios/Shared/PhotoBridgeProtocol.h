@@ -4,6 +4,7 @@ NS_ASSUME_NONNULL_BEGIN
 FOUNDATION_EXPORT NSString * const SCPhotoBridgeAssetKey;
 FOUNDATION_EXPORT NSString * const SCPhotoBridgeCloudKey;
 FOUNDATION_EXPORT NSString * const SCPhotoBridgeNonceKey;
+FOUNDATION_EXPORT NSString * const SCPhotoBridgeIncludeHiddenKey;
 FOUNDATION_EXPORT NSString * const SCPhotoBridgeAcceptedKey;
 FOUNDATION_EXPORT NSString * const SCPhotoBridgeErrorDomain;
 

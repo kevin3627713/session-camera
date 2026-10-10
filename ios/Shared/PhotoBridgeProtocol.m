@@ -3,6 +3,7 @@
 NSString * const SCPhotoBridgeAssetKey = @"assetID";
 NSString * const SCPhotoBridgeCloudKey = @"cloudIdentifier";
 NSString * const SCPhotoBridgeNonceKey = @"requestNonce";
+NSString * const SCPhotoBridgeIncludeHiddenKey = @"includeHidden";
 NSString * const SCPhotoBridgeAcceptedKey = @"accepted";
 NSString * const SCPhotoBridgeErrorDomain = @"SessionPhotoBridge";
 

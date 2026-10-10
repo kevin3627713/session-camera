@@ -86,7 +86,7 @@ jobs:
           path = next(pathlib.Path(sys.argv[1]).rglob('extract.actionsdata'))
           definitions = json.loads(path.read_bytes())
           parameters = {item['name'] for item in definitions['actions']['CameraWidgetConfiguration']['parameters']}
-          assert parameters == {'style', 'tapBehavior', 'source', 'intervalMinutes', 'identity', 'photoDiagnostic'}
+          assert parameters == {'style', 'tapBehavior', 'source', 'intervalMinutes', 'identity', 'includeHidden', 'photoDiagnostic'}
           modes = next(item for item in definitions['enums'] if item['identifier'] == 'PhotoWidgetDiagnosticMode')
           assert {item['identifier'] for item in modes['cases']} == {'off', 'rendering', 'library', 'request'}
           print('Retained diagnostics compiled and registered; normal IPA verified separately.')

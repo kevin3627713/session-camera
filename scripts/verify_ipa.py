@@ -45,12 +45,13 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     configuration = definitions["actions"]["CameraWidgetConfiguration"]
     assert "com.apple.link.systemProtocol.WidgetConfiguration" in configuration["systemProtocolMetadata"]
     parameters = {item["name"]: item for item in configuration["parameters"]}
-    expected_parameters = {"style", "tapBehavior", "source", "intervalMinutes", "identity"}
+    expected_parameters = {"style", "tapBehavior", "source", "intervalMinutes", "identity", "includeHidden"}
     if diagnostics_enabled:
         expected_parameters.add("photoDiagnostic")
     assert set(parameters) == expected_parameters
     assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
     assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
+    assert parameters["includeHidden"]["typeSpecificMetadata"][1]["bool"]["wrapper"] is False
     if diagnostics_enabled:
         assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
     else:
@@ -59,7 +60,7 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
             assert marker not in widget_executable, "Photo diagnostics leaked into the normal IPA"
     assert definitions["actions"]["KeepWidgetOnHomeScreen"]["openAppWhenRun"] is False
     assert definitions["actions"]["OpenWidgetPhoto"]["openAppWhenRun"] is False
-    assert {p["name"] for p in definitions["actions"]["OpenWidgetPhoto"]["parameters"]} == {"assetID", "instanceID"}
+    assert {p["name"] for p in definitions["actions"]["OpenWidgetPhoto"]["parameters"]} == {"assetID", "instanceID", "includeHidden"}
     styles = next(item for item in definitions["enums"] if item["identifier"] == "CameraWidgetStyle")
     assert {item["identifier"] for item in styles["cases"]} - {"preset"} == {"clear", "blank", "blur", "standard", "photos"}
     taps = next(item for item in definitions["enums"] if item["identifier"] == "WidgetTapBehavior")
