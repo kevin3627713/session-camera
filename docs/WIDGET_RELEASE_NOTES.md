@@ -6,7 +6,13 @@
 
 苹果限制：隐藏相册启用 Face ID / 密码验证时，系统可能不向 PhotoKit 返回其中的照片，即使设置 includeHiddenAssets=true。这个开关只控制借拍是否请求这些照片，不取消系统身份验证。实际行为见 [Apple isHidden 文档](https://developer.apple.com/documentation/photos/phasset/ishidden)。机主可自行调整系统照片的验证设置后测试；应用不改写该系统设置。
 
-版本 0.3.8 / build 13。正常 IPA 保持两个内置扩展，默认不包含诊断和测试日志，继续采用当前的高清加载、焦点取景与后台打开系统照片。新增验证覆盖系统允许访问的真实隐藏图片、开关关闭后的缓存排除、隐藏来源目录、时间线传递，以及中转布尔字段的安全归档。
+版本 0.3.8 / build 13。正常 IPA 保持两个内置扩展，默认不包含诊断和测试日志，继续采用当前的高清加载、焦点取景与后台打开系统照片。
+
+源码 46bb6d5539c540ade12efa008b750866a52237cd 的 [IPA 构建](https://github.com/kevin3627713/session-camera/actions/runs/38069424962)通过。[照片专项](https://github.com/kevin3627713/session-camera/actions/runs/38068430977)使用 132abf360cde129cbc71f7243c22826acbe4e74d，生产源码与最终安装包一致；此后只修正打包校验对 Xcode 布尔默认值格式的假设，按实际整数 0 检查。普通模式 [53 项](verification/widget-hidden-photos-ios18.6-v0.3.8.json)、诊断模式 [57 项](verification/widget-hidden-photo-diagnostics-ios18.6-v0.3.8.json)以及中转参数 [10 项](verification/photo-bridge-payload-v0.3.8.json)通过。
+
+iOS 18.6 模拟器未返回新建的隐藏测试资产。已验证默认排除隐藏照片、隐藏来源目录随开关变化、系统拒绝访问时不读取，以及中转布尔值安全归档和非法输入拒绝。隐藏图片实际加载、隐藏选图与 JPEG 缓存排除、隐藏图片时间线和点击的正向检查仅在系统返回该资产时执行，本次没有执行，不算验证通过。仍需在机主 iOS 18.7.8、完整照片权限及系统允许访问隐藏资产的条件下验收。
+
+[下载 0.3.8 未签名 IPA](https://github.com/kevin3627713/session-camera/releases/download/widgets-ios18-v0.3.8/session-camera-unsigned.ipa) · [发行页](https://github.com/kevin3627713/session-camera/releases/tag/widgets-ios18-v0.3.8)。安装包 6,712,250 字节，SHA-256：755e29764a612642b32082742c03732de626be2d42fe5c02c5104bcca52a3461。主应用及两个扩展均为 0.3.8 / build 13，GitHub 附件摘要与本地成品一致。沿用原签名身份和包名映射覆盖安装，保留并签署 SessionWidgets.appex、SessionPhotoBridge.appex，无需删除已有小组件。
 
 ---
 

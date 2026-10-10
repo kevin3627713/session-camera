@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "Real NSExtensionItem basic payload",
+    "System title enriches userInfo without invalidating payload",
+    "Secure coding retains required fields and extra metadata",
+    "Missing asset rejected",
+    "Missing cloud identifier rejected",
+    "Malformed request nonce rejected",
+    "Explicit hidden=false survives secure transport",
+    "Explicit hidden=true survives secure transport",
+    "String hidden flag rejected",
+    "Numeric hidden flag rejected"
+  ],
+  "count": 10,
+  "enrichedUserInfoKeyCount": 4,
+  "success": true,
+  "version": "0.3.8",
+  "build": 13,
+  "sourceCommit": "46bb6d5539c540ade12efa008b750866a52237cd",
+  "buildRun": 38069424962
+}
