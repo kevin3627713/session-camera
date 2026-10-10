@@ -51,7 +51,12 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert set(parameters) == expected_parameters
     assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
     assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
-    assert parameters["includeHidden"]["typeSpecificMetadata"][1]["bool"]["wrapper"] is False
+    hidden_metadata = parameters["includeHidden"]["typeSpecificMetadata"]
+    hidden_defaults = [value[key] for value in hidden_metadata for key in ("boolean", "bool") if key in value]
+    assert len(hidden_defaults) == 1, hidden_metadata
+    hidden_default = hidden_defaults[0]
+    assert hidden_default is False or (isinstance(hidden_default, dict) and
+                                      set(hidden_default) == {"wrapper"} and hidden_default["wrapper"] is False), hidden_metadata
     if diagnostics_enabled:
         assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
     else:
