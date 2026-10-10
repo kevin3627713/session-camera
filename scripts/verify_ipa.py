@@ -52,11 +52,11 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert parameters["tapBehavior"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "none"
     assert parameters["intervalMinutes"]["typeSpecificMetadata"][1]["int"]["wrapper"] == 60
     hidden_metadata = parameters["includeHidden"]["typeSpecificMetadata"]
-    hidden_defaults = [value[key] for value in hidden_metadata for key in ("boolean", "bool") if key in value]
-    assert len(hidden_defaults) == 1, hidden_metadata
-    hidden_default = hidden_defaults[0]
-    assert hidden_default is False or (isinstance(hidden_default, dict) and
-                                      set(hidden_default) == {"wrapper"} and hidden_default["wrapper"] is False), hidden_metadata
+    # The pinned Xcode SDK encodes a Bool's false default as an integer-backed
+    # LNValue default (0), rather than a JSON bool. Inspect the emitted format.
+    assert hidden_metadata[0] == "LNValueTypeSpecificMetadataKeyDefaultValue", hidden_metadata
+    hidden_default = hidden_metadata[1].get("int", {}).get("wrapper")
+    assert type(hidden_default) is int and hidden_default == 0, hidden_metadata
     if diagnostics_enabled:
         assert parameters["photoDiagnostic"]["typeSpecificMetadata"][1]["string"]["wrapper"] == "off"
     else:
